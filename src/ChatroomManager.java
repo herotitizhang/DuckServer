@@ -19,15 +19,15 @@ import java.util.HashMap;
 
 public class ChatroomManager {
 	
-	HashMap<String, HashMap<String, String>> chatroomMap;
-	
+	private HashMap<String, HashMap<AddressPortPair, String>> chatroomMap;
+
 	public ChatroomManager() {
-		chatroomMap = new HashMap<String, HashMap<String, String>>();
-		chatroomMap.put("Common", new HashMap<String, String>()); // Common chatroom is created in the beginning
+		chatroomMap = new HashMap<String, HashMap<AddressPortPair, String>>();
+		chatroomMap.put("Common", new HashMap<AddressPortPair, String>()); // Common chatroom is created in the beginning
 	}
 	
 	public void createChatroom(String chatroomName) {
-		chatroomMap.put(chatroomName, new HashMap<String, String>());
+		chatroomMap.put(chatroomName, new HashMap<AddressPortPair, String>());
 	}
 	
 	public void deleteChatroom(String chatroomName) {
@@ -36,6 +36,10 @@ public class ChatroomManager {
 		} else {
 			chatroomMap.remove(chatroomName);
 		}
+	}
+	
+	public HashMap<String, HashMap<AddressPortPair, String>> getChatroomMap() {
+		return chatroomMap;
 	}
 
 }
