@@ -10,11 +10,11 @@ import java.io.Serializable;
 
 public class ClientRequest implements Serializable {
 	private int identifier = -1; // 32-bit message type identifier
-	private byte[] userName = new byte[32]; // 32-byte user name
-	private byte[] channelName = new byte[32]; //32-byte channel name
-	private byte[] text = new byte[64]; // 64-byte textfield
+	private byte[] userName; // 32-byte user name
+	private byte[] channelName; //32-byte channel name
+	private byte[] text; // 64-byte textfield
 	
-	// login, join, leave or who request constructor
+	// constructor for login, join, leave or who request 
 	public ClientRequest(int identifier, byte[] name) {
 		this(identifier);
 		if (identifier == 0) { //login
@@ -26,12 +26,12 @@ public class ClientRequest implements Serializable {
 		}
 	}
 	
-	// list or logout request constructor
+	// constructor for list or logout request 
 	public ClientRequest(int identifier) {
 		this.identifier = identifier;
 	}
 	
-	// say request constructor
+	// constructor for say request 
 	public ClientRequest(int identifier, byte[] name, byte[] field) {
 		this(identifier);
 		this.channelName = name;

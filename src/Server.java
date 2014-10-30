@@ -9,7 +9,7 @@ import java.util.Map;
 public class Server {
 	
 	public static DatagramSocket serverSocket = null; 
-	public static ChatroomManager cm = new ChatroomManager();
+	public static ChannelManager cm = new ChannelManager();
 	
 	public static void main (String[] args) {
 		
@@ -30,7 +30,7 @@ public class Server {
 				ClientRequest clientRequest = (ClientRequest)Utilities.getObject(receiveData); // Deserialization occurs
 				receiveData = new byte[1024]; // TODO the purpose is to clear the placeholder. is it necessary?
 				AddressPortPair pair = new AddressPortPair(receivePacket.getAddress(), receivePacket.getPort());
-				processClientRequest(clientRequest, pair);
+				handleClientRequest(clientRequest, pair);
 			} catch (SocketException e) { //there is an error creating or accessing a Socket.
 				e.printStackTrace();
 			} catch (IOException e) { //there is an error receiving a DatagramPacket.
@@ -42,10 +42,10 @@ public class Server {
 	}
 	
 	// pair contains the information of a client's IP address and port number.
-	public static void processClientRequest(ClientRequest clientRequest, AddressPortPair pair) {
+	public static void handleClientRequest(ClientRequest clientRequest, AddressPortPair pair) {
 		
 		if (clientRequest.getIdentifier() == 0) { // login request
-			HashMap<AddressPortPair, String> common = cm.getChatroomMap().get("Common");
+			HashMap<AddressPortPair, String> common = cm.getChannelMap().get("Common");
 			common.put(pair, new String(clientRequest.getUserName()));
 			
 			/* for debugging: see the content of Common chatroom
@@ -57,6 +57,15 @@ public class Server {
 				System.out.println();
 			}
 			*/
+		} else if (clientRequest.getIdentifier() == 4) { // say request
+			HashMap<AddressPortPair, String> channel = cm.getChannelMap().get(clientRequest.getChannelName());
+			if (channel != null) {
+				for (AddressPortPair pairInChannel: channel.keySet()) {
+					// TODO send packets to servers
+				}
+			} else { // think of a way to handle a channel that does not exist
+				
+			}
 		}
 		
 	}
