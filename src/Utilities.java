@@ -49,7 +49,7 @@ public class Utilities {
 	
 	 
 	/**
-	 * We need the fields in a ClientRequest to have the exact sizes specified in 
+	 * We want the fields in a ClientRequest to have the exact sizes specified in 
 	 * the DuckChat protocol. For example, a user name has to be 32 bytes, not more
 	 * or less.
 	 * 

@@ -58,10 +58,27 @@ public class Server {
 			}
 			*/
 		} else if (clientRequest.getIdentifier() == 4) { // say request
-			HashMap<AddressPortPair, String> channel = cm.getChannelMap().get(clientRequest.getChannelName());
+			// create a server response
+			byte[] message = clientRequest.getText();
+			byte[] channelName = clientRequest.getChannelName();
+			String unAdjustedUsername =    // first get the active Channel the user is in, then get his/her name in the channel
+					cm.getChannelMap().get(new String(channelName)).get(pair);
+			byte[] userName = Utilities.fillInByteArray(unAdjustedUsername, 32);
+			ServerResponse response = new ServerResponse(message, channelName, userName);
+			byte[] dataToBeSent = Utilities.getByteArray(response); // serialization occurs
+			
+			// send say response to all memebers in the channel
+			HashMap<AddressPortPair, String> channel = cm.getChannelMap().get(new String(clientRequest.getChannelName()));
 			if (channel != null) {
 				for (AddressPortPair pairInChannel: channel.keySet()) {
-					// TODO send packets to servers
+					DatagramPacket packet = 
+							new DatagramPacket(dataToBeSent, dataToBeSent.length, 
+									pairInChannel.getAddress(), pairInChannel.getPort());
+					try {
+						serverSocket.send(packet);
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
 				}
 			} else { // think of a way to handle a channel that does not exist
 				

@@ -9,7 +9,7 @@ import java.io.Serializable;
  */
 
 public class ClientRequest implements Serializable {
-	private int identifier = -1; // 32-bit message type identifier
+	private int identifier = -1; // 4-byte message type identifier
 	private byte[] userName; // 32-byte user name
 	private byte[] channelName; //32-byte channel name
 	private byte[] text; // 64-byte textfield
@@ -32,8 +32,8 @@ public class ClientRequest implements Serializable {
 	}
 	
 	// constructor for say request 
-	public ClientRequest(int identifier, byte[] name, byte[] field) {
-		this(identifier);
+	public ClientRequest(byte[] name, byte[] field) {
+		this(4);
 		this.channelName = name;
 		this.text = field;
 	}
