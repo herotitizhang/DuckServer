@@ -9,9 +9,9 @@ import java.util.HashMap;
  * name of a channel, and HashMap contains information of users who are 
  * currently in that channel. 
  * 
- * The inner hashmap stores <AddressPortPair, String> entries, where AddressPortPair
- * is a class that contains a user's IP address and port number, and String is the 
- * username.
+ * The inner hashmap stores <String, String> entries, where the first String
+ * contains information about a user's IP address and port number, and the 
+ * second String is the username.
  * 
  * @author Xiaowei Xu, Hanxiao Zhang
  *
@@ -19,15 +19,15 @@ import java.util.HashMap;
 
 public class ChannelManager {
 	
-	private HashMap<String, HashMap<AddressPortPair, String>> channelMap;
+	private HashMap<String, HashMap<String, String>> channelMap;
 
 	public ChannelManager() {
-		channelMap = new HashMap<String, HashMap<AddressPortPair, String>>();
-		channelMap.put("Common", new HashMap<AddressPortPair, String>()); // Common channel is created in the beginning
+		channelMap = new HashMap<String, HashMap<String, String>>();
+		channelMap.put("Common", new HashMap<String, String>()); // Common channel is created in the beginning
 	}
 	
 	public void createChannel(String channelName) {
-		channelMap.put(channelName, new HashMap<AddressPortPair, String>());
+		channelMap.put(channelName, new HashMap<String, String>());
 	}
 	
 	public void deleteChannel(String channelName) {
@@ -38,7 +38,7 @@ public class ChannelManager {
 		}
 	}
 	
-	public HashMap<String, HashMap<AddressPortPair, String>> getChannelMap() {
+	public HashMap<String, HashMap<String, String>> getChannelMap() {
 		return channelMap;
 	}
 
