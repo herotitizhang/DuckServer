@@ -2,8 +2,11 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.Map.Entry;
 
 
 public class RequestHandler implements Runnable {
@@ -31,16 +34,23 @@ public class RequestHandler implements Runnable {
 		if (clientRequest.getIdentifier() == 0) { // login request
 			HashMap<String, String> common = cm.getChannelMap().get("Common");
 			common.put(pair, new String(clientRequest.getUserName()));
+		} else if (clientRequest.getIdentifier() == 1) { // logout request
+			for(Iterator<Entry<String, HashMap<String, String>>> outerIterator = cm.getChannelMap().entrySet().iterator(); outerIterator.hasNext(); ) {
+				Map.Entry<String, HashMap<String, String>> entry = outerIterator.next();
+				HashMap<String, String> channel = entry.getValue();
+				channel.remove(pair); // we don't need to check if the key-value pair exists since the map will return null if it doesn't.
+			}
+		} else if (clientRequest.getIdentifier() == 5) { // list request
+			Map m = Collections.synchronizedMap(cm.getChannelMap()); // not sure if it's correct usage
+			synchronized (m){
+				int numOfChannels = m.size();
+				byte[][] channelList = new byte[numOfChannels][];
+				//TO DO finish it
+			};
 			
-//				/* for debugging: see the content of Common chatroom
-//			System.out.println("==============================");
-//			for (Map.Entry<String, String> zu : common.entrySet()) {
-//				System.out.println("Address: "+ zu.getKey().split(" ")[0]);
-//				System.out.println("Port: "+ zu.getKey().split(" ")[1]);
-//				System.out.println("Name: "+ zu.getValue());
-//				System.out.println();
-//			}
-//				*/
+			
+			
+			
 		} else if (clientRequest.getIdentifier() == 4) { // say request
 			// create a server response
 			byte[] message = clientRequest.getText();
@@ -71,5 +81,17 @@ public class RequestHandler implements Runnable {
 			}
 		}
 		
+	}
+	
+	private void printAllChannelsAndMembers() {
+		for (Map.Entry<String, HashMap<String, String>> channelPair: cm.getChannelMap().entrySet()) {
+			System.out.println("==========="+channelPair.getKey()+"============");
+			for (Map.Entry<String, String> zu : channelPair.getValue().entrySet()) {
+				System.out.println("Address: "+ zu.getKey().split(" ")[0]);
+				System.out.println("Port: "+ zu.getKey().split(" ")[1]);
+				System.out.println("Name: "+ zu.getValue());
+				System.out.println("--------------");
+			}
+		}
 	}
 }
