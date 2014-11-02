@@ -6,33 +6,40 @@ import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 
 public class Server {
-	
-	public static DatagramSocket serverSocket = null; 
-	public static ChannelManager cm = new ChannelManager();
 	
 	public static void main (String[] args) {
 		
 		// setting up
 		byte[] receiveData = new byte[1024]; // a placeholder for incoming data
+		DatagramSocket serverSocket = null; 
+		ChannelManager cm = new ChannelManager();
+		ExecutorService threadExecutor = Executors.newCachedThreadPool();
 		
 		try {
 			serverSocket = new DatagramSocket(65533);
-		} catch (SocketException e1) {
-			e1.printStackTrace();
+		} catch (SocketException e) {
+			e.printStackTrace();
 		}
 		
 		// server starts accepting requests from users and processing them
 		while (true) { 
 			try {
+				// get all the resources needed to respond to a client
 				DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
 				serverSocket.receive(receivePacket);
 				ClientRequest clientRequest = (ClientRequest)Utilities.getObject(receiveData); // Deserialization occurs
 				receiveData = new byte[1024]; // TODO the purpose is to clear the placeholder. is it necessary?
 				String pair = receivePacket.getAddress().getHostAddress() +" "+ receivePacket.getPort();
-				handleClientRequest(clientRequest, pair);
+			
+				// make a new thread to deliver response to clients so that 
+				// the current thread can still receive incoming data
+				RequestHandler handleRequestTask = new RequestHandler(cm, serverSocket, clientRequest, pair);
+				threadExecutor.execute(handleRequestTask);
 			} catch (SocketException e) { //there is an error creating or accessing a Socket.
 				e.printStackTrace();
 			} catch (IOException e) { //there is an error receiving a DatagramPacket.
@@ -40,54 +47,7 @@ public class Server {
 			} 			
 			
 		}
-		
+			
 	}
 	
-	// pair contains the information of a client's IP address and port number.
-	public static void handleClientRequest(ClientRequest clientRequest, String pair) {
-		
-		if (clientRequest.getIdentifier() == 0) { // login request
-			HashMap<String, String> common = cm.getChannelMap().get("Common");
-			common.put(pair, new String(clientRequest.getUserName()));
-			
-//			/* for debugging: see the content of Common chatroom
-			System.out.println("==============================");
-			for (Map.Entry<String, String> zu : common.entrySet()) {
-				System.out.println("Address: "+ zu.getKey().split(" ")[0]);
-				System.out.println("Port: "+ zu.getKey().split(" ")[1]);
-				System.out.println("Name: "+ zu.getValue());
-				System.out.println();
-			}
-//			*/
-		} else if (clientRequest.getIdentifier() == 4) { // say request
-			// create a server response
-			byte[] message = clientRequest.getText();
-			byte[] channelName = clientRequest.getChannelName();
-			String unAdjustedUsername =    // first get the active Channel the user is in, then get his/her name in the channel
-					cm.getChannelMap().get(new String(channelName).trim()).get(pair);
-			byte[] userName = Utilities.fillInByteArray(unAdjustedUsername, 32);
-			ServerResponse response = new ServerResponse(message, channelName, userName);
-			byte[] dataToBeSent = Utilities.getByteArray(response); // serialization occurs
-			
-			// send say response to all members in the channel
-			HashMap<String, String> channel = cm.getChannelMap().get(new String(clientRequest.getChannelName()));
-			if (channel != null) {
-				for (String pairInChannel: channel.keySet()) {
-					try {
-						InetAddress destIPAddress = InetAddress.getByName(pairInChannel.split(" ")[0]);
-						int destPort = Integer.parseInt(pairInChannel.split(" ")[1]);
-						DatagramPacket packet = 
-								new DatagramPacket(dataToBeSent, dataToBeSent.length, 
-										destIPAddress, destPort);
-						serverSocket.send(packet);
-					} catch (IOException e) {
-						e.printStackTrace();
-					}
-				}
-			} else { // think of a way to handle a channel that does not exist
-				
-			}
-		}
-		
-	}
 }
