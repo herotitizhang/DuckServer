@@ -24,10 +24,9 @@ public class RequestHandler implements Runnable {
 	@Override
 	public void run() {
 		handleClientRequest();
-//		System.out.println("ends");
 	}
 
-	public void handleClientRequest() {
+	private void handleClientRequest() {
 		
 		if (clientRequest.getIdentifier() == 0) { // login request
 			HashMap<String, String> common = cm.getChannelMap().get("Common");
@@ -49,11 +48,11 @@ public class RequestHandler implements Runnable {
 			String unAdjustedUsername =    // first get the active Channel the user is in, then get his/her name in the channel
 					cm.getChannelMap().get(new String(channelName).trim()).get(pair);
 			byte[] userName = Utilities.fillInByteArray(unAdjustedUsername, 32);
-			ServerResponse response = new ServerResponse(message, channelName, userName);
+			ServerResponse response = new ServerResponse(channelName, userName, message);
 			byte[] dataToBeSent = Utilities.getByteArray(response); // serialization occurs
 			
 			// send say response to all members in the channel
-			HashMap<String, String> channel = cm.getChannelMap().get(new String(clientRequest.getChannelName()));
+			HashMap<String, String> channel = cm.getChannelMap().get(new String(clientRequest.getChannelName()).trim());
 			if (channel != null) {
 				for (String pairInChannel: channel.keySet()) {
 					try {

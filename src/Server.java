@@ -12,34 +12,38 @@ import java.util.concurrent.Executors;
 
 public class Server {
 	
+	private static DatagramSocket serverSocket = null; 
+	private static int port = 65533;
+	private static ChannelManager cm = new ChannelManager();
+	private static ExecutorService threadExecutor = Executors.newCachedThreadPool();
+	private static byte[] receiveData = new byte[1024]; // a placeholder for incoming data
+	
 	public static void main (String[] args) {
 		
-		// setting up
-		byte[] receiveData = new byte[1024]; // a placeholder for incoming data
-		DatagramSocket serverSocket = null; 
-		ChannelManager cm = new ChannelManager();
-		ExecutorService threadExecutor = Executors.newCachedThreadPool();
-		
 		try {
-			serverSocket = new DatagramSocket(65533);
+			serverSocket = new DatagramSocket(port);
 		} catch (SocketException e) {
 			e.printStackTrace();
 		}
 		
-		// server starts accepting requests from users and processing them
+		// server starts accepting requests from users and 
+		// make a new thread to process each request it receives
 		while (true) { 
+			
 			try {
+			
 				// get all the resources needed to respond to a client
 				DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
 				serverSocket.receive(receivePacket);
 				ClientRequest clientRequest = (ClientRequest)Utilities.getObject(receiveData); // Deserialization occurs
-				receiveData = new byte[1024]; // TODO the purpose is to clear the placeholder. is it necessary?
 				String pair = receivePacket.getAddress().getHostAddress() +" "+ receivePacket.getPort();
-			
+				receiveData = new byte[1024]; // TODO the purpose is to clear the placeholder. is it necessary?
+
 				// make a new thread to deliver response to clients so that 
 				// the current thread can still receive incoming data
 				RequestHandler handleRequestTask = new RequestHandler(cm, serverSocket, clientRequest, pair);
 				threadExecutor.execute(handleRequestTask);
+			
 			} catch (SocketException e) { //there is an error creating or accessing a Socket.
 				e.printStackTrace();
 			} catch (IOException e) { //there is an error receiving a DatagramPacket.
