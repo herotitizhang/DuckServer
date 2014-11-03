@@ -2,6 +2,7 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -40,17 +41,6 @@ public class RequestHandler implements Runnable {
 				HashMap<String, String> channel = entry.getValue();
 				channel.remove(pair); // we don't need to check if the key-value pair exists since the map will return null if it doesn't.
 			}
-		} else if (clientRequest.getIdentifier() == 5) { // list request
-			Map m = Collections.synchronizedMap(cm.getChannelMap()); // not sure if it's correct usage
-			synchronized (m){
-				int numOfChannels = m.size();
-				byte[][] channelList = new byte[numOfChannels][];
-				//TO DO finish it
-			};
-			
-			
-			
-			
 		} else if (clientRequest.getIdentifier() == 4) { // say request
 			// create a server response
 			byte[] message = clientRequest.getText();
@@ -78,6 +68,60 @@ public class RequestHandler implements Runnable {
 				}
 			} else { // think of a way to handle a channel that does not exist
 				
+			}
+			
+		} else if (clientRequest.getIdentifier() == 5) { // list request
+			Map<String, HashMap<String,String>> m = Collections.synchronizedMap(cm.getChannelMap()); // not sure if it's correct usage
+			byte[][] channelList = null;
+			ServerResponse serverResponse = null;
+			synchronized (m){
+				channelList = new byte[m.size()][];
+				int i = 0;
+				for (String channelName: m.keySet()) {
+					channelList[i] = Utilities.fillInByteArray(channelName, 32);
+					i++;
+				}
+				serverResponse = new ServerResponse(m.size(), channelList);
+			};
+			
+			try {
+				byte[] dataToBeSent = Utilities.getByteArray(serverResponse); // serialization occurs
+				InetAddress destIPAddress = InetAddress.getByName(pair.split(" ")[0]);
+				int destPort = Integer.parseInt(pair.split(" ")[1]);
+				DatagramPacket packet = 
+						new DatagramPacket(dataToBeSent, dataToBeSent.length, 
+								destIPAddress, destPort);
+				serverSocket.send(packet);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			
+		} else if (clientRequest.getIdentifier() == 6) { // who request
+			String channelName = new String(clientRequest.getChannelName()).trim();
+			Map<String,String> m = Collections.synchronizedMap(cm.getChannelMap().get(channelName)); // not sure if it's correct usage
+			byte[][] nameList = null;
+			ServerResponse serverResponse = null;
+			synchronized (m){
+				nameList = new byte[m.size()][];
+				int i = 0;
+				for (String userName: m.values()) {
+					nameList[i] = Utilities.fillInByteArray(userName, 32);
+					i++;
+				}
+				serverResponse = new ServerResponse(m.size(), 
+						Utilities.fillInByteArray(channelName, 32), nameList);
+			};		
+			
+			try {
+				byte[] dataToBeSent = Utilities.getByteArray(serverResponse); // serialization occurs
+				InetAddress destIPAddress = InetAddress.getByName(pair.split(" ")[0]);
+				int destPort = Integer.parseInt(pair.split(" ")[1]);
+				DatagramPacket packet = 
+						new DatagramPacket(dataToBeSent, dataToBeSent.length, 
+								destIPAddress, destPort);
+				serverSocket.send(packet);
+			} catch (IOException e) {
+				e.printStackTrace();
 			}
 		}
 		

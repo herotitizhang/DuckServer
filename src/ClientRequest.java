@@ -22,7 +22,7 @@ public class ClientRequest implements Serializable {
 		} else if (identifier == 3) { //leave
 		
 		} else if (identifier == 6) {// who
-			
+			channelName = name;
 		}
 	}
 	
