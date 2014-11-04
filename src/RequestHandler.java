@@ -74,12 +74,25 @@ public class RequestHandler implements Runnable {
 		//  leave request.
 		else if (clientRequest.getIdentifier() == 3){
 			byte[] channelName = clientRequest.getChannelName();
-			String name = new String(channelName);
-			cm.deleteUserFromChannel(name.trim(), pair);  // delete user from channel based on pair
+			String cName = new String(channelName);
+			cm.deleteUserFromChannel(cName.trim(), pair);  // delete user from channel based on pair
 			
-			if(cm.getChannelMap().get(cm).isEmpty()==true)
-				cm.deleteChannel(name);	 // if the channel is empty, then delete it.
+			if(cm.getChannelMap().get(cName).isEmpty()==true)
+				cm.deleteChannel(cName);	 // if the channel is empty, then delete it.
 				
+		}
+		
+		// join request
+		else if (clientRequest.getIdentifier() == 2){
+			String usname = new String(clientRequest.getUserName());
+			byte[] channelName = clientRequest.getChannelName();
+			String cName = new String(channelName);
+			
+			//check if the requested join channel exists
+			if(cm.getChannelMap().get(cName).containsKey(cName) ==false )
+				cm.createChannel(cName); //create
+			
+			cm.getChannelMap().get(cName).put(pair, usname);
 		}
 		
 	}
