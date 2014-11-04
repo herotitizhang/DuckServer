@@ -40,6 +40,7 @@ public class RequestHandler implements Runnable {
 				Map.Entry<String, HashMap<String, String>> entry = outerIterator.next();
 				HashMap<String, String> channel = entry.getValue();
 				channel.remove(pair); // we don't need to check if the key-value pair exists since the map will return null if it doesn't.
+				if (channel.size() == 0) outerIterator.remove();
 			}
 		} else if (clientRequest.getIdentifier() == 4) { // say request
 			// create a server response
@@ -137,19 +138,21 @@ public class RequestHandler implements Runnable {
 		
 		// join request
 		else if (clientRequest.getIdentifier() == 2){
-			// TODO add a data structure to cm to contain users that don't belong to any channel
-			// so that we can get the username here.
 			
-//			String usname = new String(clientRequest.getUserName()); // get nothing here
-			
+			String userName = cm.getAllUsers().get(pair);
 			String channelName = new String(clientRequest.getChannelName()).trim();
 			
-			//check if the requested join channel exists
-			if(!cm.getChannelMap().get(channelName).containsKey(channelName))
-				cm.createChannel(channelName); //create
+			System.out.println(userName+ " joined "+ channelName);
 			
-//			cm.getChannelMap().get(channelName).put(pair, usname);
+			//check if the requested join channel exists
+			if(!cm.getChannelMap().containsKey(channelName)) {
+				cm.createChannel(channelName); //create
+			}
+			cm.addUserToChannel(channelName, pair, userName);
+			
 		}
+		
+		printAllChannelsAndMembers();
 		
 	}
 	
