@@ -33,9 +33,9 @@ public class RequestHandler implements Runnable {
 	private void handleClientRequest() {
 		
 		if (clientRequest.getIdentifier() == 0) { // login request
-			HashMap<String, String> common = cm.getChannelMap().get("Common");
-			common.put(pair, new String(clientRequest.getUserName()));
+			cm.addUserToChannel("Common", pair, new String(clientRequest.getUserName()).trim());
 		} else if (clientRequest.getIdentifier() == 1) { // logout request
+			cm.getAllUsers().remove(pair);
 			for(Iterator<Entry<String, HashMap<String, String>>> outerIterator = cm.getChannelMap().entrySet().iterator(); outerIterator.hasNext(); ) {
 				Map.Entry<String, HashMap<String, String>> entry = outerIterator.next();
 				HashMap<String, String> channel = entry.getValue();
@@ -45,10 +45,9 @@ public class RequestHandler implements Runnable {
 			// create a server response
 			byte[] message = clientRequest.getText();
 			byte[] channelName = clientRequest.getChannelName();
-			String unAdjustedUsername =    // first get the active Channel the user is in, then get his/her name in the channel
+			String userName =    // first get the active Channel the user is in, then get his/her name in the channel
 					cm.getChannelMap().get(new String(channelName).trim()).get(pair);
-			byte[] userName = Utilities.fillInByteArray(unAdjustedUsername, 32);
-			ServerResponse response = new ServerResponse(channelName, userName, message);
+			ServerResponse response = new ServerResponse(channelName, Utilities.fillInByteArray(userName, 32), message);
 			byte[] dataToBeSent = Utilities.getByteArray(response); // serialization occurs
 			
 			// send say response to all members in the channel
@@ -141,7 +140,7 @@ public class RequestHandler implements Runnable {
 			// TODO add a data structure to cm to contain users that don't belong to any channel
 			// so that we can get the username here.
 			
-			String usname = new String(clientRequest.getUserName()); // get nothing here
+//			String usname = new String(clientRequest.getUserName()); // get nothing here
 			
 			String channelName = new String(clientRequest.getChannelName()).trim();
 			
@@ -149,7 +148,7 @@ public class RequestHandler implements Runnable {
 			if(!cm.getChannelMap().get(channelName).containsKey(channelName))
 				cm.createChannel(channelName); //create
 			
-			cm.getChannelMap().get(channelName).put(pair, usname);
+//			cm.getChannelMap().get(channelName).put(pair, usname);
 		}
 		
 	}

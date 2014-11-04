@@ -20,9 +20,11 @@ import java.util.HashMap;
 public class ChannelManager {
 	
 	private HashMap<String, HashMap<String, String>> channelMap;
+	private HashMap<String, String> allUsers;
 
 	public ChannelManager() {
 		channelMap = new HashMap<String, HashMap<String, String>>();
+		allUsers = new HashMap<String, String>();
 		channelMap.put("Common", new HashMap<String, String>()); // Common channel is created in the beginning
 	}
 	
@@ -38,13 +40,28 @@ public class ChannelManager {
 		}
 	}
 	
+	public void addUserToChannel(String channelName, String pair, String userName) {
+		HashMap<String, String > channel = channelMap.get(channelName);
+		if (channel != null) {
+			channel.put(pair, userName);
+			if (!allUsers.containsKey(pair)) 
+				allUsers.put(pair,userName);
+		}
+	}
+	
+	
 	public void deleteUserFromChannel(String channelName, String pair){
-		channelMap.get(channelName).remove(pair);
-		
+		HashMap<String, String > channel = channelMap.get(channelName);
+		if (channel != null) channel.remove(pair); 
+		// note: the user is only deleted in the channel, but he/she is still in allUsers
 	}
 	
 	public HashMap<String, HashMap<String, String>> getChannelMap() {
 		return channelMap;
+	}
+	
+	public HashMap<String, String> getAllUsers() {
+		return allUsers;
 	}
 
 }
