@@ -38,6 +38,11 @@ public class ChannelManager {
 		}
 	}
 	
+	public void deleteUserFromChannel(String channelName, String pair){
+		channelMap.get(channelName).remove(pair);
+		
+	}
+	
 	public HashMap<String, HashMap<String, String>> getChannelMap() {
 		return channelMap;
 	}
