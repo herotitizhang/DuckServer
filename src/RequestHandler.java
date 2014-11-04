@@ -127,12 +127,11 @@ public class RequestHandler implements Runnable {
 		
 		//  leave request.
 		else if (clientRequest.getIdentifier() == 3){
-			byte[] channelName = clientRequest.getChannelName();
-			String cName = new String(channelName);
-			cm.deleteUserFromChannel(cName.trim(), pair);  // delete user from channel based on pair
+			String channelName = new String(clientRequest.getChannelName()).trim();
+			cm.deleteUserFromChannel(channelName, pair);  // delete user from channel based on pair
 			
-			if(cm.getChannelMap().get(cName).isEmpty())
-				cm.deleteChannel(cName);	 // if the channel is empty, then delete it.
+			if(cm.getChannelMap().get(channelName).isEmpty())
+				cm.deleteChannel(channelName);	 // if the channel is empty, then delete it.
 				
 		}
 		
