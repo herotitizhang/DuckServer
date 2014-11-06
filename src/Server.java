@@ -13,36 +13,42 @@ import java.util.concurrent.Executors;
 public class Server {
 	
 	private static DatagramSocket serverSocket = null; 
-	private static int port = 65533;
+	private static InetAddress serverAddress = null;
+	private static int port = 0;
 	private static ChannelManager cm = new ChannelManager();
 	private static ExecutorService threadExecutor = Executors.newCachedThreadPool();
-	private static byte[] receiveData = new byte[1024]; // a placeholder for incoming data
 	
 	public static void main (String[] args) {
 		
 		try {
-			serverSocket = new DatagramSocket(port);
+			serverAddress = InetAddress.getByName(args[0]);
+			port = Integer.parseInt(args[1]);
+			serverSocket = new DatagramSocket(port,serverAddress);
+		} catch (UnknownHostException e) {
+			e.printStackTrace();
 		} catch (SocketException e) {
 			e.printStackTrace();
 		}
+		
 		
 		// server starts accepting requests from users and 
 		// make a new thread to process each request it receives
 		while (true) { 
 			
 			try {
-			
+				
+				byte[] receiveData = new byte[1024]; // a placeholder for incoming data
+
 				// get all the resources needed to respond to a client
 				DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
 				serverSocket.receive(receivePacket);
-				ClientRequest clientRequest = (ClientRequest)Utilities.getObject(receiveData); // Deserialization occurs
 				String pair = receivePacket.getAddress().getHostAddress() +" "+ receivePacket.getPort();
-				receiveData = new byte[1024]; // TODO the purpose is to clear the placeholder. is it necessary?
 
 				// make a new thread to deliver response to clients so that 
 				// the current thread can still receive incoming data
-				RequestHandler handleRequestTask = new RequestHandler(cm, serverSocket, clientRequest, pair);
+				RequestHandler handleRequestTask = new RequestHandler(cm, serverSocket, receiveData, pair);
 				threadExecutor.execute(handleRequestTask);
+				
 			
 			} catch (SocketException e) { //there is an error creating or accessing a Socket.
 				e.printStackTrace();

@@ -3,8 +3,9 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -14,11 +15,11 @@ public class RequestHandler implements Runnable {
 
 	ChannelManager cm;
 	DatagramSocket serverSocket;
-	ClientRequest clientRequest; 
+	byte[] clientRequest; 
 	String pair;
 	
 	public RequestHandler(ChannelManager cm, DatagramSocket serverSocket, 
-			ClientRequest clientRequest, String pair) {
+			byte[] clientRequest, String pair) {
 		this.cm = cm;
 		this.serverSocket = serverSocket;
 		this.clientRequest = clientRequest;
@@ -27,136 +28,300 @@ public class RequestHandler implements Runnable {
 	
 	@Override
 	public void run() {
-		handleClientRequest();
+		if (clientRequest[0] == 0) { // login request
+			handleLoginRequest();
+		} else if (clientRequest[0] == 1) { // logout request
+			handleLogoutRequest();
+		} else if (clientRequest[0] == 2){ // join request
+			handleJoinRequest();
+		} else if (clientRequest[0] == 3){ // leave request
+			handleLeaveRequest();
+		} else if (clientRequest[0] == 4) { // say request
+			handleSayRequest();
+		} else if (clientRequest[0] == 5) { // list request
+			handleListRequest();
+		} else if (clientRequest[0] == 6) { // who request
+			handleWhoRequest();
+		}
+		
 	}
 
-	private void handleClientRequest() {
-		
-		if (clientRequest.getIdentifier() == 0) { // login request
-			cm.addUserToChannel("Common", pair, new String(clientRequest.getUserName()).trim());
-		} else if (clientRequest.getIdentifier() == 1) { // logout request
-			cm.getAllUsers().remove(pair);
-			for(Iterator<Entry<String, HashMap<String, String>>> outerIterator = cm.getChannelMap().entrySet().iterator(); outerIterator.hasNext(); ) {
-				Map.Entry<String, HashMap<String, String>> entry = outerIterator.next();
-				HashMap<String, String> channel = entry.getValue();
-				channel.remove(pair); // we don't need to check if the key-value pair exists since the map will return null if it doesn't.
-				if (channel.size() == 0) outerIterator.remove();
-			}
-		} else if (clientRequest.getIdentifier() == 4) { // say request
-			// create a server response
-			byte[] message = clientRequest.getText();
-			byte[] channelName = clientRequest.getChannelName();
-			String userName =    // first get the active Channel the user is in, then get his/her name in the channel
-					cm.getChannelMap().get(new String(channelName).trim()).get(pair);
-			ServerResponse response = new ServerResponse(channelName, Utilities.fillInByteArray(userName, 32), message);
-			byte[] dataToBeSent = Utilities.getByteArray(response); // serialization occurs
-			
-			// send say response to all members in the channel
-			HashMap<String, String> channel = cm.getChannelMap().get(new String(clientRequest.getChannelName()).trim());
-			if (channel != null) {
-				for (String pairInChannel: channel.keySet()) {
-					try {
-						InetAddress destIPAddress = InetAddress.getByName(pairInChannel.split(" ")[0]);
-						int destPort = Integer.parseInt(pairInChannel.split(" ")[1]);
-						DatagramPacket packet = 
-								new DatagramPacket(dataToBeSent, dataToBeSent.length, 
-										destIPAddress, destPort);
-						serverSocket.send(packet);
-					} catch (IOException e) {
-						e.printStackTrace();
-					}
-				}
-			} else { // think of a way to handle a channel that does not exist
-				
-			}
-			
-		} else if (clientRequest.getIdentifier() == 5) { // list request
-			Map<String, HashMap<String,String>> m = Collections.synchronizedMap(cm.getChannelMap()); // not sure if it's correct usage
-			byte[][] channelList = null;
-			ServerResponse serverResponse = null;
-			synchronized (m){
-				channelList = new byte[m.size()][];
-				int i = 0;
-				for (String channelName: m.keySet()) {
-					channelList[i] = Utilities.fillInByteArray(channelName, 32);
-					i++;
-				}
-				serverResponse = new ServerResponse(m.size(), channelList);
-			};
-			
-			try {
-				byte[] dataToBeSent = Utilities.getByteArray(serverResponse); // serialization occurs
-				InetAddress destIPAddress = InetAddress.getByName(pair.split(" ")[0]);
-				int destPort = Integer.parseInt(pair.split(" ")[1]);
-				DatagramPacket packet = 
-						new DatagramPacket(dataToBeSent, dataToBeSent.length, 
-								destIPAddress, destPort);
-				serverSocket.send(packet);
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-			
-		} else if (clientRequest.getIdentifier() == 6) { // who request
-			String channelName = new String(clientRequest.getChannelName()).trim();
-			Map<String,String> m = Collections.synchronizedMap(cm.getChannelMap().get(channelName)); // not sure if it's correct usage
-			byte[][] nameList = null;
-			ServerResponse serverResponse = null;
-			synchronized (m){
-				nameList = new byte[m.size()][];
-				int i = 0;
-				for (String userName: m.values()) {
-					nameList[i] = Utilities.fillInByteArray(userName, 32);
-					i++;
-				}
-				serverResponse = new ServerResponse(m.size(), 
-						Utilities.fillInByteArray(channelName, 32), nameList);
-			};		
-			
-			try {
-				byte[] dataToBeSent = Utilities.getByteArray(serverResponse); // serialization occurs
-				InetAddress destIPAddress = InetAddress.getByName(pair.split(" ")[0]);
-				int destPort = Integer.parseInt(pair.split(" ")[1]);
-				DatagramPacket packet = 
-						new DatagramPacket(dataToBeSent, dataToBeSent.length, 
-								destIPAddress, destPort);
-				serverSocket.send(packet);
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
+	private void handleLoginRequest() {
+		// get channel name
+		int lastByteOfUserName;
+		for (lastByteOfUserName = 4; lastByteOfUserName < 36; lastByteOfUserName++) {
+			if (clientRequest[lastByteOfUserName] == 0)
+				break;
 		}
-		
-		//  leave request.
-		else if (clientRequest.getIdentifier() == 3){
-			String channelName = new String(clientRequest.getChannelName()).trim();
-			cm.deleteUserFromChannel(channelName, pair);  // delete user from channel based on pair
-			
-			if(cm.getChannelMap().get(channelName).isEmpty())
-				cm.deleteChannel(channelName);	 // if the channel is empty, then delete it.
-				
+		if (lastByteOfUserName == 36)
+			lastByteOfUserName--;
+		lastByteOfUserName--;
+
+		byte[] userName = new byte[lastByteOfUserName - 4 + 1];
+		for (int i = 4; i <= lastByteOfUserName; i++) {
+			userName[i - 4] = clientRequest[i];
 		}
-		
-		// join request
-		else if (clientRequest.getIdentifier() == 2){
-			
-			String userName = cm.getAllUsers().get(pair);
-			String channelName = new String(clientRequest.getChannelName()).trim();
-			
-			System.out.println(userName+ " joined "+ channelName);
-			
-			//check if the requested join channel exists
-			if(!cm.getChannelMap().containsKey(channelName)) {
-				cm.createChannel(channelName); //create
-			}
-			cm.addUserToChannel(channelName, pair, userName);
-			
-		}
-		
-		printAllChannelsAndMembers();
-		
+
+		// add the user to the channel
+		cm.getAllUsers().put(pair, new String(userName));
+		System.out.println(new String(userName) + " logged in.");
 	}
 	
+	private void handleLogoutRequest() {
+		String username = cm.getAllUsers().get(pair);
+		cm.getAllUsers().remove(pair);
+		for(Iterator<Entry<String, Hashtable<String, String>>> outerIterator = cm.getChannelTable().entrySet().iterator(); outerIterator.hasNext(); ) {
+			Map.Entry<String, Hashtable<String, String>> entry = outerIterator.next();
+			Hashtable<String, String> channel = entry.getValue();
+			channel.remove(pair); // we don't need to check if the key-value pair exists since the table will return null if it doesn't.
+			if (channel.size() == 0) outerIterator.remove();
+		}
+		System.out.println(username + " logged out.");
+
+	}
+	
+	private void handleJoinRequest() {
+
+		// get username
+		String userName = cm.getAllUsers().get(pair);
+
+		// get channel name
+		int lastByteOfchannelName;
+		for (lastByteOfchannelName = 4; lastByteOfchannelName < 36; lastByteOfchannelName++ ){
+			if (clientRequest[lastByteOfchannelName] == 0) break;
+		}
+		if (lastByteOfchannelName == 36) lastByteOfchannelName --;
+		lastByteOfchannelName --;
+		
+		byte[] channelName = new byte[lastByteOfchannelName-4+1];
+		for (int i = 4; i <= lastByteOfchannelName; i++) {
+			channelName[i-4] = clientRequest[i]; 
+		}
+		
+		String cName = new String(channelName);
+		
+		//check if the requested join channel exists
+		if(!cm.getChannelTable().containsKey(cName)) {
+			cm.createChannel(cName); //create
+		}
+		cm.addUserToChannel(cName, pair, userName);
+		
+		System.out.println(userName+" joined channel "+cName+".");
+	}
+	
+	private void handleLeaveRequest() {
+
+		// get channel name
+		int lastByteOfchannelName;
+		for (lastByteOfchannelName = 4; lastByteOfchannelName < 36; lastByteOfchannelName++) {
+			if (clientRequest[lastByteOfchannelName] == 0)
+				break;
+		}
+		if (lastByteOfchannelName == 36)
+			lastByteOfchannelName--;
+		lastByteOfchannelName--;
+
+		byte[] channelName = new byte[lastByteOfchannelName - 4 + 1];
+		for (int i = 4; i <= lastByteOfchannelName; i++) {
+			channelName[i - 4] = clientRequest[i];
+		}
+
+		// delete the user from the channel
+		cm.deleteUserFromChannel(new String(channelName), pair); 
+		System.out.println(cm.getAllUsers().get(pair)+" left channel "+new String(channelName));
+	}
+	
+	private void handleSayRequest() {
+		
+		ArrayList<byte[]> byteArrays = new ArrayList<byte[]>();
+
+		// create identifier
+		byte[] identifier = new byte[4];
+		identifier[0] = 0;
+		
+		// create channelName
+		int lastByteOfChannelName;
+		for (lastByteOfChannelName = 4; lastByteOfChannelName < 36; lastByteOfChannelName++ ){
+			if (clientRequest[lastByteOfChannelName] == 0) break;
+		}
+		if (lastByteOfChannelName == 36) lastByteOfChannelName --;
+		lastByteOfChannelName --;
+		
+		byte[] channelName = new byte[32];
+		for (int i = 4; i <= lastByteOfChannelName; i++) {
+			channelName[i-4] = clientRequest[i]; 
+		}
+		
+		// create userName
+		String uName = cm.getAllUsers().get(pair);
+		byte[] userName = Utilities.fillInByteArray(uName, 32);
+		
+		// create textField
+		int lastByteOfTextField;
+		for (lastByteOfTextField = 36; lastByteOfTextField < 100; lastByteOfTextField++ ){
+			if (clientRequest[lastByteOfTextField] == 0) break;
+		}
+		if (lastByteOfTextField == 100) lastByteOfTextField --;
+		lastByteOfTextField --;
+		
+		byte[] textField = new byte[64];
+		for (int i = 36; i <= lastByteOfTextField; i++) {
+			textField[i-36] = clientRequest[i]; 
+		}
+		
+		// combine the byte arrays
+		byteArrays.add(identifier);
+		byteArrays.add(channelName);
+		byteArrays.add(userName);
+		byteArrays.add(textField);
+		
+		byte[] dataToBeSent = Utilities.combineListOfByteArrays(byteArrays);
+
+
+		// send say response to all members in the channel
+		Hashtable<String, String> channel = cm.getChannelTable().get(new String(channelName).trim());
+		if (channel != null) {
+			for (String pairInChannel : channel.keySet()) {
+				try {
+					InetAddress destIPAddress = InetAddress
+							.getByName(pairInChannel.split(" ")[0]);
+					int destPort = Integer
+							.parseInt(pairInChannel.split(" ")[1]);
+					DatagramPacket packet = new DatagramPacket(dataToBeSent,
+							dataToBeSent.length, destIPAddress, destPort);
+					serverSocket.send(packet);
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		} else { // think of a way to handle a channel that does not exist
+
+		}
+		
+		System.out.println(uName+" said something in channel "+new String(channelName).trim());
+	}
+	
+	private void handleListRequest() {
+		ArrayList<byte[]> byteArrays = new ArrayList<byte[]>();
+		
+		Hashtable<String, Hashtable<String, String>> table = cm.getChannelTable();
+		
+		// create identifier
+		byte[] identifier = new byte[4];
+		identifier[0] = 1;
+		
+		// create numOfChannels
+		byte[] numOfChannels = new byte[4];
+		numOfChannels[0] = (byte)table.size();
+		
+		byteArrays.add(identifier);
+		byteArrays.add(numOfChannels);
+		
+		for (String channelName: table.keySet()) {
+			byteArrays.add(Utilities.fillInByteArray(channelName, 32));
+		}
+		
+		try {
+			byte[] dataToBeSent = Utilities.combineListOfByteArrays(byteArrays);
+			InetAddress destIPAddress = InetAddress.getByName(pair.split(" ")[0]);
+			int destPort = Integer.parseInt(pair.split(" ")[1]);
+			DatagramPacket packet = 
+					new DatagramPacket(dataToBeSent, dataToBeSent.length, 
+							destIPAddress, destPort);
+			serverSocket.send(packet);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		System.out.println(cm.getAllUsers().get(pair)+" sent a list request.");
+	}
+
+		
+	private void handleWhoRequest() {
+		
+		// get channelName
+		int lastByteOfChannelName;
+		for (lastByteOfChannelName = 4; lastByteOfChannelName < 36; lastByteOfChannelName++ ){
+			if (clientRequest[lastByteOfChannelName] == 0) break;
+		}
+		if (lastByteOfChannelName == 36) lastByteOfChannelName --;
+		lastByteOfChannelName --;
+		
+		byte[] channelName = new byte[32];
+		for (int i = 4; i <= lastByteOfChannelName; i++) {
+			channelName[i-4] = clientRequest[i]; 
+		}
+		
+		// create byte array
+		ArrayList<byte[]> byteArrays = new ArrayList<byte[]>();
+		
+		// create identifier
+		byte[] identifier = new byte[4];
+		identifier[0] = 2;
+		byteArrays.add(identifier);
+		
+		Hashtable<String, String> channel = cm.getChannelTable().get(new String(channelName).trim());
+		
+		if (channel == null) {
+			sendErrorMessage("The channel does not exist!");
+			return;
+		}
+		
+		// create numOfChannels
+		byte[] numOfChannels = new byte[4];
+		numOfChannels[0] = (byte)channel.size();
+		
+		byteArrays.add(numOfChannels);
+		byteArrays.add(channelName);
+		
+		for (String userName: channel.values()) {
+			byteArrays.add(Utilities.fillInByteArray(userName, 32));
+		}
+		
+		
+		try {
+			byte[] dataToBeSent = Utilities.combineListOfByteArrays(byteArrays);
+			InetAddress destIPAddress = InetAddress.getByName(pair.split(" ")[0]);
+			int destPort = Integer.parseInt(pair.split(" ")[1]);
+			DatagramPacket packet = 
+					new DatagramPacket(dataToBeSent, dataToBeSent.length, 
+							destIPAddress, destPort);
+			serverSocket.send(packet);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
+		System.out.println(cm.getAllUsers().get(pair)+" sent a who request.");
+
+	}
+	
+	private void sendErrorMessage (String errorMsg){
+		byte[] errorIdentifier = new byte[4];
+		errorIdentifier[0] = 3;
+		
+		byte[] errorMessage = Utilities.fillInByteArray(errorMsg, 64);
+		
+		ArrayList<byte[]> byteArrays = new ArrayList<byte[]>();
+		byteArrays.add(errorIdentifier);
+		byteArrays.add(errorMessage);
+		
+		try {
+			byte[] dataToBeSent = Utilities.combineListOfByteArrays(byteArrays);
+			InetAddress destIPAddress = InetAddress.getByName(pair.split(" ")[0]);
+			int destPort = Integer.parseInt(pair.split(" ")[1]);
+			DatagramPacket packet = 
+					new DatagramPacket(dataToBeSent, dataToBeSent.length, 
+							destIPAddress, destPort);
+			serverSocket.send(packet);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
+	}
+
+	
 	private void printAllChannelsAndMembers() {
-		for (Map.Entry<String, HashMap<String, String>> channelPair: cm.getChannelMap().entrySet()) {
+		for (Map.Entry<String, Hashtable<String, String>> channelPair: cm.getChannelTable().entrySet()) {
 			System.out.println("==========="+channelPair.getKey()+"============");
 			for (Map.Entry<String, String> zu : channelPair.getValue().entrySet()) {
 				System.out.println("Address: "+ zu.getKey().split(" ")[0]);

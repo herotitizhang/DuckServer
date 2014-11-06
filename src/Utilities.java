@@ -1,8 +1,4 @@
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import java.util.ArrayList;
 
 /**
  * Utilities class contains methods needed by different classes.
@@ -11,41 +7,6 @@ import java.io.ObjectOutputStream;
  */
 
 public class Utilities {
-	
-	/** 
-	 * convert an object to a byte array
-	 * @param obj
-	 * @return
-	 */
-	public static byte[] getByteArray(Object obj) {
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		try {
-			ObjectOutputStream oos = new ObjectOutputStream(baos);
-			oos.writeObject(obj);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		return baos.toByteArray();
-	}
-
-	/** 
-	 * convert a byte array to an object
-	 * @param byteArray
-	 * @return
-	 */
-	public static Object getObject(byte[] byteArray) {
-		ByteArrayInputStream bais = new ByteArrayInputStream(byteArray);
-		ObjectInputStream ois = null;
-		try {
-			ois = new ObjectInputStream(bais);
-			return ois.readObject();
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (ClassNotFoundException e) {
-			e.printStackTrace();
-		}
-		return null;
-	}
 	
 	 
 	/**
@@ -67,5 +28,28 @@ public class Utilities {
 		return wellSized;
 		
 	}
+	
+	/**
+	 * get a list of byte arrays and combine them
+	 * @param byteArrays
+	 * @return a byte array
+	 */
+	public static byte[] combineListOfByteArrays(ArrayList<byte[]> byteArrays) {
+		
+		int length = 0;
+		for (int i = 0; i < byteArrays.size(); i++) length += byteArrays.get(i).length;
+		byte[] combination = new byte[length];
+		
+		int pointer = 0;
+		for (int i = 0; i < byteArrays.size(); i++) {
+			for (int j = 0; j < byteArrays.get(i).length; j++, pointer++) {
+				combination[pointer] = byteArrays.get(i)[j];
+			}
+		}
+		
+		return combination;
+	}
+	
+	
 	
 }
