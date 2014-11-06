@@ -84,6 +84,20 @@ public class RequestHandler implements Runnable {
 
 		// get username
 		String userName = cm.getAllUsers().get(pair);
+		
+		if (userName == null) { // the join request arrives sooner than the login request
+			                    // so userName does not exist in the server yet
+			try {
+				Thread.sleep(2000);
+				userName = cm.getAllUsers().get(pair); // get the pair again
+				if (userName == null) {
+					sendErrorMessage("The user didn't join properly!");
+					return;
+				}
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
 
 		// get channel name
 		int lastByteOfchannelName;
@@ -104,6 +118,8 @@ public class RequestHandler implements Runnable {
 		if(!cm.getChannelTable().containsKey(cName)) {
 			cm.createChannel(cName); //create
 		}
+		
+		System.out.println("pair = "+pair+", userName = "+userName);
 		cm.addUserToChannel(cName, pair, userName);
 		
 		System.out.println(userName+" joined channel "+cName+".");

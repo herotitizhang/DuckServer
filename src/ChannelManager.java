@@ -39,7 +39,7 @@ public class ChannelManager {
 	
 	public void addUserToChannel(String channelName, String pair, String userName) {
 		Hashtable<String, String > channel = channelTable.get(channelName);
-		if (channel != null) {
+		if (channel != null && pair != null && userName != null) {
 			channel.put(pair, userName);
 			if (!allUsers.containsKey(pair)) 
 				allUsers.put(pair,userName);
