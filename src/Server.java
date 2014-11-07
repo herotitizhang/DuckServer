@@ -19,6 +19,11 @@ public class Server {
 	private static ExecutorService threadExecutor = Executors.newCachedThreadPool();
 	
 	public static void main (String[] args) {
+		if (args.length !=2){
+			System.out.println("need 2 args");
+			System.exit(0);
+		}
+			
 		
 		try {
 			serverAddress = InetAddress.getByName(args[0]);
