@@ -44,6 +44,13 @@ public class RequestHandler implements Runnable {
 			handleListRequest();
 		} else if (clientRequest[0] == 6) { // who request
 			handleWhoRequest();
+		} else if (clientRequest[0] == 8) { // S2S join request
+			// TODO add a method that sends its neighboring servers S2S join request
+		} else if (clientRequest[0] == 9) { // S2S leave request
+			// TODO tells another server that it is not taking any request from it
+		} else if (clientRequest[0] == 10) { // S2S say request
+			// TODO add a method that deletes unnecessary servers and forms a real tree without loops
+			// this method may call forwardMessage(), which is called in handleJoinRequest
 		}
 		
 	}
@@ -125,9 +132,18 @@ public class RequestHandler implements Runnable {
 		}
 		
 		System.out.println("pair = "+pair+", userName = "+userName);
-		cm.addUserToChannel(cName, pair, userName);
 		
+		cm.addUserToChannel(cName, pair, userName);
 		System.out.println(userName+" joined channel "+cName+".");
+		
+		
+		
+		
+		
+		// TODO send join message to a server
+		cm.getChannelTable().get(cName).setServers(neighbors);
+		// forwardMessage()
+		
 		
 		
 		

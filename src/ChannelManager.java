@@ -6,8 +6,8 @@ import java.util.Hashtable;
  * channels and logged-in users in each channel.
  * 
  * A hashtable is used to store <String, Channel> entries, where String is the 
- * name of a channel, and Hashtable contains information of users who are 
- * currently in that channel. 
+ * name of a channel, and Channel contains information of users who are 
+ * currently in that channel and servers that are subscribed to the channel.
  * 
  * @author Xiaowei Xu, Hanxiao Zhang
  *
