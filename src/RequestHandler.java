@@ -49,6 +49,9 @@ public class RequestHandler implements Runnable {
 	}
 
 	private void handleLoginRequest() {
+		
+		printAllChannelsAndMembers();
+		
 		// get channel name
 		int lastByteOfUserName;
 		for (lastByteOfUserName = 4; lastByteOfUserName < 36; lastByteOfUserName++) {
@@ -72,9 +75,9 @@ public class RequestHandler implements Runnable {
 	private void handleLogoutRequest() {
 		String username = cm.getAllUsers().get(pair);
 		cm.getAllUsers().remove(pair);
-		for(Iterator<Entry<String, Hashtable<String, String>>> outerIterator = cm.getChannelTable().entrySet().iterator(); outerIterator.hasNext(); ) {
-			Map.Entry<String, Hashtable<String, String>> entry = outerIterator.next();
-			Hashtable<String, String> channel = entry.getValue();
+		for(Iterator<Entry<String, Channel>> outerIterator = cm.getChannelTable().entrySet().iterator(); outerIterator.hasNext(); ) {
+			Map.Entry<String, Channel> entry = outerIterator.next();
+			Hashtable<String, String> channel = entry.getValue().getClients();
 			channel.remove(pair); // we don't need to check if the key-value pair exists since the table will return null if it doesn't.
 			if (channel.size() == 0) outerIterator.remove();
 		}
@@ -200,9 +203,9 @@ public class RequestHandler implements Runnable {
 
 
 		// send say response to all members in the channel
-		Hashtable<String, String> channel = cm.getChannelTable().get(new String(channelName).trim());
+		Channel channel = cm.getChannelTable().get(new String(channelName).trim());
 		if (channel != null) {
-			for (String pairInChannel : channel.keySet()) {
+			for (String pairInChannel : channel.getClients().keySet()) {
 				try {
 					InetAddress destIPAddress = InetAddress
 							.getByName(pairInChannel.split(" ")[0]);
@@ -225,7 +228,7 @@ public class RequestHandler implements Runnable {
 	private void handleListRequest() {
 		ArrayList<byte[]> byteArrays = new ArrayList<byte[]>();
 		
-		Hashtable<String, Hashtable<String, String>> table = cm.getChannelTable();
+		Hashtable<String, Channel> table = cm.getChannelTable();
 		
 		// create identifier
 		byte[] identifier = new byte[4];
@@ -281,7 +284,7 @@ public class RequestHandler implements Runnable {
 		identifier[0] = 2;
 		byteArrays.add(identifier);
 		
-		Hashtable<String, String> channel = cm.getChannelTable().get(new String(channelName).trim());
+		Channel channel = cm.getChannelTable().get(new String(channelName).trim());
 		
 		if (channel == null) {
 			sendErrorMessage("The channel does not exist!");
@@ -290,12 +293,12 @@ public class RequestHandler implements Runnable {
 		
 		// create numOfChannels
 		byte[] numOfChannels = new byte[4];
-		numOfChannels[0] = (byte)channel.size();
+		numOfChannels[0] = (byte)channel.getClients().size();
 		
 		byteArrays.add(numOfChannels);
 		byteArrays.add(channelName);
 		
-		for (String userName: channel.values()) {
+		for (String userName: channel.getClients().values()) {
 			byteArrays.add(Utilities.fillInByteArray(userName, 32));
 		}
 		
@@ -342,9 +345,9 @@ public class RequestHandler implements Runnable {
 
 	
 	private void printAllChannelsAndMembers() {
-		for (Map.Entry<String, Hashtable<String, String>> channelPair: cm.getChannelTable().entrySet()) {
+		for (Map.Entry<String, Channel> channelPair: cm.getChannelTable().entrySet()) {
 			System.out.println("==========="+channelPair.getKey()+"============");
-			for (Map.Entry<String, String> zu : channelPair.getValue().entrySet()) {
+			for (Map.Entry<String, String> zu : channelPair.getValue().getClients().entrySet()) {
 				System.out.println("Address: "+ zu.getKey().split(" ")[0]);
 				System.out.println("Port: "+ zu.getKey().split(" ")[1]);
 				System.out.println("Name: "+ zu.getValue());
