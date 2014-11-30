@@ -4,6 +4,7 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -16,19 +17,26 @@ public class Server {
 	private static InetAddress serverAddress = null;
 	private static int port = 0;
 	private static ChannelManager cm = new ChannelManager();
+	private static ArrayList<AddressPortPair> neighbors= new ArrayList<AddressPortPair>();
 	private static ExecutorService threadExecutor = Executors.newCachedThreadPool();
 	
 	public static void main (String[] args) {
-		if (args.length !=2){
-			System.out.println("need 2 args");
+		if (args.length%2 !=0){
+			System.out.println("Odd number of arguments!");
 			System.exit(0);
 		}
-			
 		
 		try {
 			serverAddress = InetAddress.getByName(args[0]);
 			port = Integer.parseInt(args[1]);
 			serverSocket = new DatagramSocket(port,serverAddress);
+			
+			for (int i = 2; i < args.length; i+=2) {
+				InetAddress neighborAddress = InetAddress.getByName(args[i]);
+				int neighborPort = Integer.parseInt(args[i+1]);
+				neighbors.add(new AddressPortPair(neighborAddress, neighborPort));
+			}
+			
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
 		} catch (SocketException e) {
@@ -51,7 +59,7 @@ public class Server {
 
 				// make a new thread to deliver response to clients so that 
 				// the current thread can still receive incoming data
-				RequestHandler handleRequestTask = new RequestHandler(cm, serverSocket, receiveData, pair);
+				RequestHandler handleRequestTask = new RequestHandler(cm, serverSocket, receiveData, pair, neighbors);
 				threadExecutor.execute(handleRequestTask);
 				
 			

@@ -17,13 +17,15 @@ public class RequestHandler implements Runnable {
 	DatagramSocket serverSocket;
 	byte[] clientRequest; 
 	String pair;
+	ArrayList<AddressPortPair> neighbors;
 	
 	public RequestHandler(ChannelManager cm, DatagramSocket serverSocket, 
-			byte[] clientRequest, String pair) {
+			byte[] clientRequest, String pair, ArrayList<AddressPortPair> neighbors) {
 		this.cm = cm;
 		this.serverSocket = serverSocket;
 		this.clientRequest = clientRequest;
 		this.pair = pair;
+		this.neighbors = neighbors;
 	}
 	
 	@Override
@@ -123,6 +125,9 @@ public class RequestHandler implements Runnable {
 		cm.addUserToChannel(cName, pair, userName);
 		
 		System.out.println(userName+" joined channel "+cName+".");
+		
+		
+		
 	}
 	
 	private void handleLeaveRequest() {
