@@ -1,4 +1,5 @@
 import java.net.InetAddress;
+import java.util.ArrayList;
 import java.util.Hashtable;
 
 /**
@@ -57,6 +58,10 @@ public class ChannelManager {
 		}
 		
 		// note: the user is only deleted in the channel, but he/she is still in allUsers
+	}
+	
+	public void initializeRoutingTableInChannel(String channelName, ArrayList<AddressPortPair> neighbors){
+		channelTable.get(channelName).setRoutingTable(neighbors);
 	}
 	
 	public Hashtable<String, Channel> getChannelTable() {

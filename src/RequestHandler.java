@@ -13,11 +13,11 @@ import java.util.Map.Entry;
 
 public class RequestHandler implements Runnable {
 
-	ChannelManager cm;
-	DatagramSocket serverSocket;
-	byte[] clientRequest; 
-	String pair;
-	ArrayList<AddressPortPair> neighbors;
+	private ChannelManager cm;
+	private DatagramSocket serverSocket;
+	private byte[] clientRequest; 
+	private String pair;
+	private ArrayList<AddressPortPair> neighbors; // no member should be added to or deleted from this ArrayList
 	
 	public RequestHandler(ChannelManager cm, DatagramSocket serverSocket, 
 			byte[] clientRequest, String pair, ArrayList<AddressPortPair> neighbors) {
@@ -140,10 +140,10 @@ public class RequestHandler implements Runnable {
 		
 		
 		
-		// TODO send join message to a server
-		cm.getChannelTable().get(cName).setServers(neighbors);
-		// forwardMessage()
-		
+		// send join message to servers
+		// TODO: test it
+		cm.initializeRoutingTableInChannel(cName,neighbors);
+		forwardJoinMessages(cName);
 		
 		
 		
@@ -355,6 +355,44 @@ public class RequestHandler implements Runnable {
 			serverSocket.send(packet);
 		} catch (IOException e) {
 			e.printStackTrace();
+		}
+		
+	}
+	
+	// forward join messages to servers stored in a Channel's routing table.
+	// the parameter channelName is used both to get the receiving servers'
+	// addresses and ports and to be included in a join message
+	private void forwardJoinMessages(String channelName) {
+		ArrayList<AddressPortPair> receivingServers = cm.getChannelTable().get(channelName).getRoutingTable();
+		for (AddressPortPair receivingServer: receivingServers) {
+			
+			// generate S2S join message
+			byte[] identifier = new byte[4];
+		    identifier[0] = 8;
+		    
+		    byte[] cName = Utilities.fillInByteArray(channelName, 32);
+		    
+		    if (cName.length == 0) return;
+
+	    	byte[] request = new byte[4+32];
+	    	for (int i = 0; i < 4; i++) {
+	    		request[i] = identifier[i]; 
+	    	}
+	    	for (int i = 4; i < 36; i++) {
+	    		request[i] = cName[i-4];
+	    	}
+	    	
+	    	try {
+		    	// send S2S join message
+		    	DatagramPacket packet = 
+						new DatagramPacket(request, request.length, 
+								receivingServer.getAddress(), receivingServer.getPort());
+		   		serverSocket.send(packet);
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+	    	
 		}
 		
 	}
