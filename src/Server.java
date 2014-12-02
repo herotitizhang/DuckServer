@@ -62,7 +62,6 @@ public class Server {
 				RequestHandler handleRequestTask = new RequestHandler(cm, serverSocket, receiveData, pair, neighbors);
 				threadExecutor.execute(handleRequestTask);
 				
-			
 			} catch (SocketException e) { //there is an error creating or accessing a Socket.
 				e.printStackTrace();
 			} catch (IOException e) { //there is an error receiving a DatagramPacket.

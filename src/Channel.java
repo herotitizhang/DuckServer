@@ -23,12 +23,15 @@ public class Channel {
 	public Hashtable<String, String> getClients() {
 		return clients;
 	}
+	
 	public void setClients(Hashtable<String, String> clients) {
 		this.clients = clients;
 	}
+	
 	public ArrayList<AddressPortPair> getRoutingTable() {
 		return routingTable;
 	}
+	
 	public void setRoutingTable(ArrayList<AddressPortPair> servers) {
 		this.routingTable = servers;
 	}	

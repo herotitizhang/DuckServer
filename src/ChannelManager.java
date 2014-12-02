@@ -33,6 +33,11 @@ public class ChannelManager {
 		channelTable.put(channelName, new Channel());
 	}
 	
+	// should be called after a new channel is created
+	public void initializeRoutingTableInChannel(String channelName, ArrayList<AddressPortPair> neighbors){
+		channelTable.get(channelName).setRoutingTable(neighbors);
+	}
+	
 	public void deleteChannel(String channelName) {
 		if (!channelName.equals("Common")) 
 			channelTable.remove(channelName);
@@ -58,10 +63,6 @@ public class ChannelManager {
 		}
 		
 		// note: the user is only deleted in the channel, but he/she is still in allUsers
-	}
-	
-	public void initializeRoutingTableInChannel(String channelName, ArrayList<AddressPortPair> neighbors){
-		channelTable.get(channelName).setRoutingTable(neighbors);
 	}
 	
 	public Hashtable<String, Channel> getChannelTable() {

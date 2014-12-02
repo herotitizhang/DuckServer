@@ -45,6 +45,7 @@ public class RequestHandler implements Runnable {
 		} else if (clientRequest[0] == 6) { // who request
 			handleWhoRequest();
 		} else if (clientRequest[0] == 8) { // S2S join request
+			handleS2SJoinRequest();
 			// TODO add a method that sends its neighboring servers S2S join request
 		} else if (clientRequest[0] == 9) { // S2S leave request
 			// TODO tells another server that it is not taking any request from it
@@ -127,8 +128,10 @@ public class RequestHandler implements Runnable {
 		String cName = new String(channelName);
 		
 		//check if the requested join channel exists
-		if(!cm.getChannelTable().containsKey(cName)) {
+		if( !cm.getChannelTable().containsKey(cName) ||
+				!cm.getChannelTable().get("Common").getClients().containsKey(pair)){
 			cm.createChannel(cName); //create
+			cm.initializeRoutingTableInChannel(cName,neighbors);
 		}
 		
 		System.out.println("pair = "+pair+", userName = "+userName);
@@ -138,14 +141,37 @@ public class RequestHandler implements Runnable {
 		
 		
 		
-		
-		
 		// send join message to servers
 		// TODO: test it
-		cm.initializeRoutingTableInChannel(cName,neighbors);
-		forwardJoinMessages(cName);
+		byte[] request = S2SRequestGenerator.generateS2SJoinMessage(cName);
+    	
+		ArrayList<AddressPortPair> receivingServers = cm.getChannelTable().get(cName).getRoutingTable();
+		for (AddressPortPair receivingServer: receivingServers) {
+			
+	    	try {
+		    	// send S2S join message
+		    	DatagramPacket packet = 
+						new DatagramPacket(request, request.length, 
+								receivingServer.getAddress(), receivingServer.getPort());
+		   		serverSocket.send(packet);
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+	    	
+	    	// print send prompt
+			StringBuilder prompt = new StringBuilder();
+			prompt.append(serverSocket.getLocalSocketAddress()).append(" ");
+			String receiverAddress = receivingServer.getAddress().toString()
+					.replace("localhost", "");
+			System.out.println("yoyo!"+receiverAddress);
+			prompt.append(receiverAddress).append(":").append(receivingServer.getPort()).append(" ");
+			prompt.append("send S2S Join ").append(cName);
+			System.out.println(prompt);
+	    	
+		}
 		
-		
+
 		
 	}
 	
@@ -335,6 +361,89 @@ public class RequestHandler implements Runnable {
 
 	}
 	
+	private void handleS2SJoinRequest() {
+
+		// get channel name
+		int lastByteOfchannelName;
+		for (lastByteOfchannelName = 4; lastByteOfchannelName < 36; lastByteOfchannelName++ ){
+			if (clientRequest[lastByteOfchannelName] == 0) break;
+		}
+		if (lastByteOfchannelName == 36) lastByteOfchannelName --;
+		lastByteOfchannelName --;
+		
+		byte[] channelName = new byte[lastByteOfchannelName-4+1];
+		for (int i = 4; i <= lastByteOfchannelName; i++) {
+			channelName[i-4] = clientRequest[i]; 
+		}
+		
+		String cName = new String(channelName);
+		
+		//check if the requested join channel exists
+		if(!cm.getChannelTable().containsKey(cName)) {
+			cm.createChannel(cName); //create
+			cm.initializeRoutingTableInChannel(cName, neighbors);
+			
+			// remove the sender from the routing table 
+			 AddressPortPair sender = null;
+			try {
+				sender = new AddressPortPair(InetAddress.getByName(pair.split(" ")[0]), Integer.parseInt(pair.split(" ")[1]));
+			} catch (NumberFormatException e1) {
+				e1.printStackTrace();
+			} catch (UnknownHostException e1) {
+				e1.printStackTrace();
+			}
+			if (sender != null) cm.getChannelTable().get(cName).getRoutingTable().remove(sender);
+		}
+		
+    	
+		// get the sender
+		AddressPortPair sender = null;
+		try {
+			sender = new AddressPortPair(InetAddress.getByName(pair.split(" ")[0]), Integer.parseInt(pair.split(" ")[1]));
+		} catch (NumberFormatException e1) {
+			e1.printStackTrace();
+		} catch (UnknownHostException e1) {
+			e1.printStackTrace();
+		}
+
+		
+		// send S2S join message to all servers (except the one this server gets message from) in the channel
+		byte[] request = S2SRequestGenerator.generateS2SJoinMessage(cName);
+		ArrayList<AddressPortPair> receivingServers = cm.getChannelTable().get(cName).getRoutingTable();
+		for (AddressPortPair receivingServer: receivingServers) {
+			if (!receivingServer.equals(sender)) { // we do not send the S2S join message back to the sender
+				try {
+			    	// send S2S join message
+			    	DatagramPacket packet = 
+							new DatagramPacket(request, request.length, 
+									receivingServer.getAddress(), receivingServer.getPort());
+			   		serverSocket.send(packet);
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				
+				// print send prompt
+				StringBuilder prompt = new StringBuilder();
+				prompt.append(serverSocket.getLocalSocketAddress()).append(" ");
+				String receiverAddress = receivingServer.getAddress().toString()
+						.replace("localhost", "");
+				prompt.append(receiverAddress).append(":").append(receivingServer.getPort()).append(" ");
+				prompt.append("send S2S Join ").append(cName);
+				System.out.println(prompt);
+			}
+	    	
+		}
+		
+		// print receive prompt
+		StringBuilder prompt = new StringBuilder();
+		prompt.append(serverSocket.getLocalSocketAddress()).append(" /");
+		prompt.append(pair.split(" ")[0]).append(":").append(pair.split(" ")[1]).append(" ");
+		prompt.append("recv S2S Join ").append(cName);
+		System.out.println(prompt);
+		
+	}
+	
 	private void sendErrorMessage (String errorMsg){
 		byte[] errorIdentifier = new byte[4];
 		errorIdentifier[0] = 3;
@@ -363,25 +472,12 @@ public class RequestHandler implements Runnable {
 	// the parameter channelName is used both to get the receiving servers'
 	// addresses and ports and to be included in a join message
 	private void forwardJoinMessages(String channelName) {
+		
+    	byte[] request = S2SRequestGenerator.generateS2SJoinMessage(channelName);
+    	
 		ArrayList<AddressPortPair> receivingServers = cm.getChannelTable().get(channelName).getRoutingTable();
 		for (AddressPortPair receivingServer: receivingServers) {
 			
-			// generate S2S join message
-			byte[] identifier = new byte[4];
-		    identifier[0] = 8;
-		    
-		    byte[] cName = Utilities.fillInByteArray(channelName, 32);
-		    
-		    if (cName.length == 0) return;
-
-	    	byte[] request = new byte[4+32];
-	    	for (int i = 0; i < 4; i++) {
-	    		request[i] = identifier[i]; 
-	    	}
-	    	for (int i = 4; i < 36; i++) {
-	    		request[i] = cName[i-4];
-	    	}
-	    	
 	    	try {
 		    	// send S2S join message
 		    	DatagramPacket packet = 

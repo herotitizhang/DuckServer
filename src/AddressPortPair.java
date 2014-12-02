@@ -25,5 +25,20 @@ public class AddressPortPair {
 	public void setPort(int port) {
 		this.port = port;
 	}
+	
+	@Override
+	public boolean equals(Object another) {
+		if (another == null) return false;
+		
+		if (another instanceof AddressPortPair) {
+			
+			if (((AddressPortPair)another).getAddress().equals(this.address) && 
+					((AddressPortPair)another).getPort() == this.port) {
+				return true;
+			}
+			return false;
+		}
+		return false;
+	}
 
 }
