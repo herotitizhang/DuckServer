@@ -15,7 +15,7 @@ public class RequestHandler implements Runnable {
 
 	private ChannelManager cm;
 	private DatagramSocket serverSocket;
-	private byte[] clientRequest; 
+	private byte[] receivedRequest; 
 	private String pair;
 	private ArrayList<AddressPortPair> neighbors; // no member should be added to or deleted from this ArrayList
 	
@@ -23,33 +23,35 @@ public class RequestHandler implements Runnable {
 			byte[] clientRequest, String pair, ArrayList<AddressPortPair> neighbors) {
 		this.cm = cm;
 		this.serverSocket = serverSocket;
-		this.clientRequest = clientRequest;
+		this.receivedRequest = clientRequest;
 		this.pair = pair;
 		this.neighbors = neighbors;
 	}
 	
 	@Override
 	public void run() {
-		if (clientRequest[0] == 0) { // login request
+		if (receivedRequest[0] == 0) { // login request
 			handleLoginRequest();
-		} else if (clientRequest[0] == 1) { // logout request
+		} else if (receivedRequest[0] == 1) { // logout request
 			handleLogoutRequest();
-		} else if (clientRequest[0] == 2){ // join request
+		} else if (receivedRequest[0] == 2){ // join request
 			handleJoinRequest();
-		} else if (clientRequest[0] == 3){ // leave request
+		} else if (receivedRequest[0] == 3){ // leave request
 			handleLeaveRequest();
-		} else if (clientRequest[0] == 4) { // say request
+		} else if (receivedRequest[0] == 4) { // say request
 			handleSayRequest();
-		} else if (clientRequest[0] == 5) { // list request
+		} else if (receivedRequest[0] == 5) { // list request
 			handleListRequest();
-		} else if (clientRequest[0] == 6) { // who request
+		} else if (receivedRequest[0] == 6) { // who request
 			handleWhoRequest();
-		} else if (clientRequest[0] == 8) { // S2S join request
+		} else if (receivedRequest[0] == 8) { // S2S join request
 			handleS2SJoinRequest();
-			// TODO add a method that sends its neighboring servers S2S join request
-		} else if (clientRequest[0] == 9) { // S2S leave request
+			// TODO implements soft-state Join
+		} else if (receivedRequest[0] == 9) { // S2S leave request
+			handleS2SLeaveRequest();
 			// TODO tells another server that it is not taking any request from it
-		} else if (clientRequest[0] == 10) { // S2S say request
+		} else if (receivedRequest[0] == 10) { // S2S say request
+			handleS2SSayRequest();
 			// TODO add a method that deletes unnecessary servers and forms a real tree without loops
 			// this method may call forwardMessage(), which is called in handleJoinRequest
 		}
@@ -63,7 +65,7 @@ public class RequestHandler implements Runnable {
 		// get channel name
 		int lastByteOfUserName;
 		for (lastByteOfUserName = 4; lastByteOfUserName < 36; lastByteOfUserName++) {
-			if (clientRequest[lastByteOfUserName] == 0)
+			if (receivedRequest[lastByteOfUserName] == 0)
 				break;
 		}
 		if (lastByteOfUserName == 36)
@@ -72,7 +74,7 @@ public class RequestHandler implements Runnable {
 
 		byte[] userName = new byte[lastByteOfUserName - 4 + 1];
 		for (int i = 4; i <= lastByteOfUserName; i++) {
-			userName[i - 4] = clientRequest[i];
+			userName[i - 4] = receivedRequest[i];
 		}
 
 		// add the user to the channel
@@ -115,14 +117,14 @@ public class RequestHandler implements Runnable {
 		// get channel name
 		int lastByteOfchannelName;
 		for (lastByteOfchannelName = 4; lastByteOfchannelName < 36; lastByteOfchannelName++ ){
-			if (clientRequest[lastByteOfchannelName] == 0) break;
+			if (receivedRequest[lastByteOfchannelName] == 0) break;
 		}
 		if (lastByteOfchannelName == 36) lastByteOfchannelName --;
 		lastByteOfchannelName --;
 		
 		byte[] channelName = new byte[lastByteOfchannelName-4+1];
 		for (int i = 4; i <= lastByteOfchannelName; i++) {
-			channelName[i-4] = clientRequest[i]; 
+			channelName[i-4] = receivedRequest[i]; 
 		}
 		
 		String cName = new String(channelName);
@@ -142,7 +144,6 @@ public class RequestHandler implements Runnable {
 		
 		
 		// send join message to servers
-		// TODO: test it
 		byte[] request = S2SRequestGenerator.generateS2SJoinMessage(cName);
     	
 		ArrayList<AddressPortPair> receivingServers = cm.getChannelTable().get(cName).getRoutingTable();
@@ -155,7 +156,6 @@ public class RequestHandler implements Runnable {
 								receivingServer.getAddress(), receivingServer.getPort());
 		   		serverSocket.send(packet);
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 	    	
@@ -180,7 +180,7 @@ public class RequestHandler implements Runnable {
 		// get channel name
 		int lastByteOfchannelName;
 		for (lastByteOfchannelName = 4; lastByteOfchannelName < 36; lastByteOfchannelName++) {
-			if (clientRequest[lastByteOfchannelName] == 0)
+			if (receivedRequest[lastByteOfchannelName] == 0)
 				break;
 		}
 		if (lastByteOfchannelName == 36)
@@ -189,7 +189,7 @@ public class RequestHandler implements Runnable {
 
 		byte[] channelName = new byte[lastByteOfchannelName - 4 + 1];
 		for (int i = 4; i <= lastByteOfchannelName; i++) {
-			channelName[i - 4] = clientRequest[i];
+			channelName[i - 4] = receivedRequest[i];
 		}
 
 		// delete the user from the channel
@@ -208,14 +208,14 @@ public class RequestHandler implements Runnable {
 		// create channelName
 		int lastByteOfChannelName;
 		for (lastByteOfChannelName = 4; lastByteOfChannelName < 36; lastByteOfChannelName++ ){
-			if (clientRequest[lastByteOfChannelName] == 0) break;
+			if (receivedRequest[lastByteOfChannelName] == 0) break;
 		}
 		if (lastByteOfChannelName == 36) lastByteOfChannelName --;
 		lastByteOfChannelName --;
 		
 		byte[] channelName = new byte[32];
 		for (int i = 4; i <= lastByteOfChannelName; i++) {
-			channelName[i-4] = clientRequest[i]; 
+			channelName[i-4] = receivedRequest[i]; 
 		}
 		
 		// create userName
@@ -225,14 +225,14 @@ public class RequestHandler implements Runnable {
 		// create textField
 		int lastByteOfTextField;
 		for (lastByteOfTextField = 36; lastByteOfTextField < 100; lastByteOfTextField++ ){
-			if (clientRequest[lastByteOfTextField] == 0) break;
+			if (receivedRequest[lastByteOfTextField] == 0) break;
 		}
 		if (lastByteOfTextField == 100) lastByteOfTextField --;
 		lastByteOfTextField --;
 		
 		byte[] textField = new byte[64];
 		for (int i = 36; i <= lastByteOfTextField; i++) {
-			textField[i-36] = clientRequest[i]; 
+			textField[i-36] = receivedRequest[i]; 
 		}
 		
 		// combine the byte arrays
@@ -308,14 +308,14 @@ public class RequestHandler implements Runnable {
 		// get channelName
 		int lastByteOfChannelName;
 		for (lastByteOfChannelName = 4; lastByteOfChannelName < 36; lastByteOfChannelName++ ){
-			if (clientRequest[lastByteOfChannelName] == 0) break;
+			if (receivedRequest[lastByteOfChannelName] == 0) break;
 		}
 		if (lastByteOfChannelName == 36) lastByteOfChannelName --;
 		lastByteOfChannelName --;
 		
 		byte[] channelName = new byte[32];
 		for (int i = 4; i <= lastByteOfChannelName; i++) {
-			channelName[i-4] = clientRequest[i]; 
+			channelName[i-4] = receivedRequest[i]; 
 		}
 		
 		// create byte array
@@ -366,14 +366,14 @@ public class RequestHandler implements Runnable {
 		// get channel name
 		int lastByteOfchannelName;
 		for (lastByteOfchannelName = 4; lastByteOfchannelName < 36; lastByteOfchannelName++ ){
-			if (clientRequest[lastByteOfchannelName] == 0) break;
+			if (receivedRequest[lastByteOfchannelName] == 0) break;
 		}
 		if (lastByteOfchannelName == 36) lastByteOfchannelName --;
 		lastByteOfchannelName --;
 		
 		byte[] channelName = new byte[lastByteOfchannelName-4+1];
 		for (int i = 4; i <= lastByteOfchannelName; i++) {
-			channelName[i-4] = clientRequest[i]; 
+			channelName[i-4] = receivedRequest[i]; 
 		}
 		
 		String cName = new String(channelName);
@@ -419,7 +419,6 @@ public class RequestHandler implements Runnable {
 									receivingServer.getAddress(), receivingServer.getPort());
 			   		serverSocket.send(packet);
 				} catch (IOException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 				
@@ -444,6 +443,168 @@ public class RequestHandler implements Runnable {
 		
 	}
 	
+	private void handleS2SSayRequest() {
+		
+		// get text field
+		int lastByteOfTextField; 
+		for (lastByteOfTextField = 76; lastByteOfTextField < 140; lastByteOfTextField++ ){
+			if (receivedRequest[lastByteOfTextField] == 0) break;
+		}
+		if (lastByteOfTextField == 140) lastByteOfTextField --;
+		lastByteOfTextField --;
+			
+		
+		byte[] textField = new byte[lastByteOfTextField-76+1];
+		for (int i = 76; i <= lastByteOfTextField; i++) {
+			textField[i-76] = receivedRequest[i]; 
+		}
+		
+		// get channel name 
+		int lastByteOfChannelName;
+		for (lastByteOfChannelName = 44; lastByteOfChannelName < 76; lastByteOfChannelName++ ){
+			if (receivedRequest[lastByteOfChannelName] == 0) break;
+		}
+		if (lastByteOfChannelName == 76) lastByteOfChannelName --;
+		lastByteOfChannelName --;
+		
+		byte[] channelName = new byte[lastByteOfChannelName-44+1];
+		for (int i = 44; i <= lastByteOfChannelName; i++) {
+			channelName[i-44] = receivedRequest[i]; 
+		}
+		
+		// get username
+		int lastByteOfUsername;
+		for (lastByteOfUsername = 12; lastByteOfUsername < 44; lastByteOfUsername++ ){
+			if (receivedRequest[lastByteOfUsername] == 0) break;
+		}
+		if (lastByteOfUsername == 44) lastByteOfUsername --;
+		lastByteOfUsername --;
+		
+		byte[] userName = new byte[lastByteOfUsername-12+1];
+		for (int i = 12; i <= lastByteOfUsername; i++) {
+			userName[i-12] = receivedRequest[i]; 
+		}
+		
+		
+		
+		
+		// TODO look for a way to get 64-bit unique identifier
+		
+		
+		// print receive prompt
+		StringBuilder receivePrompt = new StringBuilder();
+		receivePrompt.append(serverSocket.getLocalSocketAddress()).append(" /");
+		receivePrompt.append(pair.split(" ")[0]).append(":").append(pair.split(" ")[1]).append(" ");
+		receivePrompt.append("recv S2S Say ").append(channelName);
+		System.out.println(receivePrompt);
+		
+		
+		// get the sender
+		AddressPortPair sender = null;
+		try {
+			sender = new AddressPortPair(InetAddress.getByName(pair.split(" ")[0]), Integer.parseInt(pair.split(" ")[1]));
+		} catch (NumberFormatException e1) {
+			e1.printStackTrace();
+		} catch (UnknownHostException e1) {
+			e1.printStackTrace();
+		}
+		
+		/*
+		 * There are 2 scenarios in which we need to send a S2S leave message to the server that
+		 * sends this S2S say message. The 1st scenario is that the server is a leaf, which is 
+		 * represented by leafInTree boolean variable. The 2nd scenario is that the server gets 
+		 * a duplicate say message, which is represented by gotDuplicateSay boolean variable.
+		 * 
+		 * For the 1st scenario, we also need to remove the server from the tree.
+		 * For the 2nd scenario, we also need to delete the server that sends this S2S say message
+		 * from the channel.
+		 */
+		
+		// check if the server is the leaf of the tree for the channel
+		boolean leafInTree = false;
+		Channel channel = cm.getChannelTable().get(new String(channelName).trim());
+		if (channel == null) {
+			leafInTree = true;
+		} else {
+			leafInTree = channel.getClients().size() == 0 && // the channel does not have any clients
+					channel.getRoutingTable().size() == 1 && 
+					channel.getRoutingTable().get(0).equals(sender); // the server only knows the sender
+		
+			// remove itself from the tree, i.e., delete the channel in this server's own channel table.
+			if (leafInTree)  cm.getChannelTable().remove(new String(channelName).trim());
+		}
+		
+		// check if the server received a duplicate say
+		boolean gotDuplicateSay = false;
+		// TODO add one more check: duplicate
+		
+		
+		
+		//  delete the server that sends this S2S say message from the channel
+		if (gotDuplicateSay && channel != null) {
+			boolean senderRemovedSuccessfully = channel.getRoutingTable().remove(sender);
+			if (!senderRemovedSuccessfully) System.out.println("Error when removing the sender");
+		}
+		
+		// send S2S leave message if necessary. Otherwise, forward S2S say messages to children
+		if (leafInTree || gotDuplicateSay) {
+			
+			byte[] leaveRequest = S2SRequestGenerator.generateS2SLeaveMessage(new String(channelName).trim());
+			
+			try {
+		    	// send S2S leave message
+		    	DatagramPacket packet = 
+						new DatagramPacket(leaveRequest, leaveRequest.length, 
+								sender.getAddress(), sender.getPort());
+		   		serverSocket.send(packet);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			
+			// print send Leave prompt
+			StringBuilder sendPrompt = new StringBuilder();
+			sendPrompt.append(serverSocket.getLocalSocketAddress()).append(" ");
+			String receiverAddress = sender.getAddress().toString()
+					.replace("localhost", "");
+			sendPrompt.append(receiverAddress).append(":").append(sender.getPort()).append(" ");
+			sendPrompt.append("send S2S Leave ").append(channelName);
+			System.out.println(sendPrompt);
+			
+		} else { 
+			
+			if (channel != null) {
+				for (AddressPortPair receivingServer: channel.getRoutingTable()) {
+					try {
+				    	// send S2S say message
+				    	DatagramPacket packet = 
+								new DatagramPacket(receivedRequest, receivedRequest.length, 
+										receivingServer.getAddress(), receivingServer.getPort());
+				   		serverSocket.send(packet);
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+					
+					// print send Say prompt
+					StringBuilder sendPrompt = new StringBuilder();
+					sendPrompt.append(serverSocket.getLocalSocketAddress()).append(" ");
+					String receiverAddress = receivingServer.getAddress().toString()
+							.replace("localhost", "");
+					sendPrompt.append(receiverAddress).append(":").append(receivingServer.getPort()).append(" ");
+					sendPrompt.append("send S2S Say ").append(channelName);
+					System.out.println(sendPrompt);
+			    	
+				}
+			}
+			
+		}
+		
+	}
+	
+	private void handleS2SLeaveRequest() {
+		
+	}
+
+	
 	private void sendErrorMessage (String errorMsg){
 		byte[] errorIdentifier = new byte[4];
 		errorIdentifier[0] = 3;
@@ -467,32 +628,6 @@ public class RequestHandler implements Runnable {
 		}
 		
 	}
-	
-	// forward join messages to servers stored in a Channel's routing table.
-	// the parameter channelName is used both to get the receiving servers'
-	// addresses and ports and to be included in a join message
-	private void forwardJoinMessages(String channelName) {
-		
-    	byte[] request = S2SRequestGenerator.generateS2SJoinMessage(channelName);
-    	
-		ArrayList<AddressPortPair> receivingServers = cm.getChannelTable().get(channelName).getRoutingTable();
-		for (AddressPortPair receivingServer: receivingServers) {
-			
-	    	try {
-		    	// send S2S join message
-		    	DatagramPacket packet = 
-						new DatagramPacket(request, request.length, 
-								receivingServer.getAddress(), receivingServer.getPort());
-		   		serverSocket.send(packet);
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-	    	
-		}
-		
-	}
-
 	
 	private void printAllChannelsAndMembers() {
 		for (Map.Entry<String, Channel> channelPair: cm.getChannelTable().entrySet()) {
