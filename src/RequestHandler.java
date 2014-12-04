@@ -1,3 +1,6 @@
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -489,6 +492,23 @@ public class RequestHandler implements Runnable {
 		
 		
 		// TODO look for a way to get 64-bit unique identifier
+		
+		FileInputStream fileStream = null;
+		try {
+			fileStream = new FileInputStream(new File("/dev/urandom"));
+		} catch (FileNotFoundException e2) {
+			e2.printStackTrace();
+		}
+
+	    	// Instantiate array
+	    byte []arr= new byte[64];
+
+	    	/// read All bytes of File stream
+	    try {
+			fileStream.read(arr,0,64);
+		} catch (IOException e2) {
+			e2.printStackTrace();
+		}
 		
 		
 		// print receive prompt
