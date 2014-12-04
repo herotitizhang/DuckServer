@@ -1,3 +1,8 @@
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+
 
 public class S2SRequestGenerator {
 
@@ -39,6 +44,35 @@ public class S2SRequestGenerator {
     	}
     	return request;
 	    
+	}
+	
+	public static byte[] generateS2SSayMessage(/* TODO add params */) {
+		
+		
+		return null;
+	}
+
+	
+	private static byte[] getUniqueIdentifiers() {
+		
+		FileInputStream fileStream = null;
+		try {
+			fileStream = new FileInputStream("/dev/urandom"); // read a random number
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		}
+	    
+		// Instantiate an array
+	    byte []arr= new byte[64];
+
+	    // read All bytes of File stream
+	    try {
+			fileStream.read(arr,0,64);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	    
+	    return arr;
 	}
 	
 }
