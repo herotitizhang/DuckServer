@@ -7,7 +7,7 @@ import java.io.IOException;
 public class S2SRequestGenerator {
 
 	public static byte[] generateS2SJoinMessage(String channelName) {
-		// generate S2S join message
+
 		byte[] identifier = new byte[4];
 	    identifier[0] = 8;
 	    
@@ -46,10 +46,44 @@ public class S2SRequestGenerator {
 	    
 	}
 	
-	public static byte[] generateS2SSayMessage(/* TODO add params */) {
+	public static byte[] generateS2SSayMessage(String userName, String channelName, String textField)  {
 		
+		byte[] identifier = new byte[4];
+	    identifier[0] = 10;
 		
-		return null;
+	    byte[] uniqueId = getUniqueIdentifiers();
+	    
+	    byte[] uName = Utilities.fillInByteArray(userName, 32);
+	    
+	    byte[] cName = Utilities.fillInByteArray(channelName, 32);
+	    
+	    byte[] tField = Utilities.fillInByteArray(textField, 64);
+	    
+	    byte[] request = new byte[4+8+32+32+64];
+	    
+	    int i = 0;
+	    for (byte b: identifier) {
+	    	request[i] = b;
+	    	i++;
+	    }
+	    for (byte b: uniqueId) {
+	    	request[i] = b;
+	    	i++;
+	    }
+	    for (byte b: uName) {
+	    	request[i] = b;
+	    	i++;
+	    }
+	    for (byte b: cName) {
+	    	request[i] = b;
+	    	i++;
+	    }
+	    for (byte b: tField) {
+	    	request[i] = b;
+	    	i++;
+	    }
+	    
+	    return request;
 	}
 
 	

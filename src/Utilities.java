@@ -50,6 +50,20 @@ public class Utilities {
 		return combination;
 	}
 	
-	
+	/**
+	 * 
+	 * @param arr1
+	 * @param arr2
+	 * @return a boolean variable indicating if 2 byte arrays are equal
+	 */
+	public static boolean compareByteArrays(byte[] arr1, byte[] arr2) {
+		
+		if (arr1.length != arr2.length) return false;
+		for (int i = 0; i < arr1.length; i++) {
+			if (arr1[i] != arr2[i]) return false;
+		}
+		return true;
+		
+	}
 	
 }

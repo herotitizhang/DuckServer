@@ -1,4 +1,5 @@
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Hashtable;
 
 /**
@@ -15,9 +16,12 @@ public class Channel {
 	// message is received
 	private ArrayList<AddressPortPair> routingTable; 
 	
+	private static HashSet<byte[]> uniqueIds;
+	
 	public Channel() {
 		clients = new Hashtable<String, String>();
 		routingTable = new ArrayList<AddressPortPair>();
+		uniqueIds = new HashSet<byte[]>();
 	}
 	
 	public Hashtable<String, String> getClients() {
@@ -35,5 +39,14 @@ public class Channel {
 	public void setRoutingTable(ArrayList<AddressPortPair> servers) {
 		this.routingTable = servers;
 	}	
+	
+	public static HashSet<byte[]> getUniqueIds() {
+		return uniqueIds;
+	}
+
+	public static void setUniqueIds(HashSet<byte[]> uniqueIds) {
+		Channel.uniqueIds = uniqueIds;
+	}
+
 	
 }

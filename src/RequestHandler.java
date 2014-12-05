@@ -52,11 +52,8 @@ public class RequestHandler implements Runnable {
 			// TODO implements soft-state Join
 		} else if (receivedRequest[0] == 9) { // S2S leave request
 			handleS2SLeaveRequest();
-			// TODO tells another server that it is not taking any request from it
 		} else if (receivedRequest[0] == 10) { // S2S say request
 			handleS2SSayRequest();
-			// TODO add a method that deletes unnecessary servers and forms a real tree without loops
-			// this method may call forwardMessage(), which is called in handleJoinRequest
 		}
 		
 	}
@@ -387,7 +384,7 @@ public class RequestHandler implements Runnable {
 			cm.initializeRoutingTableInChannel(cName, neighbors);
 			
 			// remove the sender from the routing table 
-			 AddressPortPair sender = null;
+			AddressPortPair sender = null;
 			try {
 				sender = new AddressPortPair(InetAddress.getByName(pair.split(" ")[0]), Integer.parseInt(pair.split(" ")[1]));
 			} catch (NumberFormatException e1) {
@@ -488,10 +485,11 @@ public class RequestHandler implements Runnable {
 			userName[i-12] = receivedRequest[i]; 
 		}
 		
-		// TODO get the unique identifier
-		
-		
-		
+		// get the unique identifier
+		byte[] uniqueId = new byte[8];
+		for (int i = 4; i < 12; i++ ){
+			uniqueId[i-4] = receivedRequest[i];
+		}
 		
 		
 		// print receive prompt
@@ -540,13 +538,23 @@ public class RequestHandler implements Runnable {
 		// check if the server received a duplicate say
 		boolean gotDuplicateSay = false;
 		// TODO add one more check: duplicate
-		
-		
-		
-		//  delete the server that sends this S2S say message from the channel
-		if (gotDuplicateSay && channel != null) {
-			boolean senderRemovedSuccessfully = channel.getRoutingTable().remove(sender);
-			if (!senderRemovedSuccessfully) System.out.println("Error when removing the sender");
+		if (channel != null) {
+			for (byte[] existingIds: channel.getUniqueIds()) {
+				if (Utilities.compareByteArrays(existingIds, uniqueId)) {
+					gotDuplicateSay = true;
+					break;
+				}
+			}
+			
+			// if this id is a duplicate, delete the sender from the routing table
+			// otherwise, add this id to the channel's hashset. 
+			if (gotDuplicateSay) {
+				boolean senderRemovedSuccessfully = channel.getRoutingTable().remove(sender);
+				if (!senderRemovedSuccessfully) System.out.println("Error when removing the sender");
+			} else {
+				channel.getUniqueIds().add(uniqueId);
+			}
+			
 		}
 		
 		// send S2S leave message if necessary. Otherwise, forward S2S say messages to children
@@ -554,8 +562,8 @@ public class RequestHandler implements Runnable {
 			
 			byte[] leaveRequest = S2SRequestGenerator.generateS2SLeaveMessage(new String(channelName).trim());
 			
+			// send S2S leave message
 			try {
-		    	// send S2S leave message
 		    	DatagramPacket packet = 
 						new DatagramPacket(leaveRequest, leaveRequest.length, 
 								sender.getAddress(), sender.getPort());
@@ -577,8 +585,9 @@ public class RequestHandler implements Runnable {
 			
 			if (channel != null) {
 				for (AddressPortPair receivingServer: channel.getRoutingTable()) {
+					
+					// send S2S say message
 					try {
-				    	// send S2S say message
 				    	DatagramPacket packet = 
 								new DatagramPacket(receivedRequest, receivedRequest.length, 
 										receivingServer.getAddress(), receivingServer.getPort());
@@ -604,7 +613,35 @@ public class RequestHandler implements Runnable {
 	}
 	
 	private void handleS2SLeaveRequest() {
+		// get channel name
+		int lastByteOfchannelName;
+		for (lastByteOfchannelName = 4; lastByteOfchannelName < 36; lastByteOfchannelName++ ){
+			if (receivedRequest[lastByteOfchannelName] == 0) break;
+		}
+		if (lastByteOfchannelName == 36) lastByteOfchannelName --;
+		lastByteOfchannelName --;
 		
+		byte[] channelName = new byte[lastByteOfchannelName-4+1];
+		for (int i = 4; i <= lastByteOfchannelName; i++) {
+			channelName[i-4] = receivedRequest[i]; 
+		}
+		
+		String cName = new String(channelName);
+		
+		// remove the sender from the routing table 
+		Channel channel = cm.getChannelTable().get(cName);
+		if (channel != null) {
+			
+			AddressPortPair sender = null;
+			try {
+				sender = new AddressPortPair(InetAddress.getByName(pair.split(" ")[0]), Integer.parseInt(pair.split(" ")[1]));
+			} catch (NumberFormatException e1) {
+				e1.printStackTrace();
+			} catch (UnknownHostException e1) {
+				e1.printStackTrace();
+			}
+			if (sender != null) cm.getChannelTable().get(cName).getRoutingTable().remove(sender);
+		}
 	}
 
 	
