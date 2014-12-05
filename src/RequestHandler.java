@@ -60,8 +60,6 @@ public class RequestHandler implements Runnable {
 
 	private void handleLoginRequest() {
 		
-		printAllChannelsAndMembers();
-		
 		// get channel name
 		int lastByteOfUserName;
 		for (lastByteOfUserName = 4; lastByteOfUserName < 36; lastByteOfUserName++) {
@@ -79,7 +77,7 @@ public class RequestHandler implements Runnable {
 
 		// add the user to the channel
 		cm.getAllUsers().put(pair, new String(userName));
-		System.out.println(new String(userName) + " logged in.");
+//		System.out.println(new String(userName) + " logged in.");
 	}
 	
 	private void handleLogoutRequest() {
@@ -91,7 +89,7 @@ public class RequestHandler implements Runnable {
 			channel.remove(pair); // we don't need to check if the key-value pair exists since the table will return null if it doesn't.
 			if (channel.size() == 0) outerIterator.remove();
 		}
-		System.out.println(username + " logged out.");
+//		System.out.println(username + " logged out.");
 
 	}
 	
@@ -136,10 +134,10 @@ public class RequestHandler implements Runnable {
 			cm.initializeRoutingTableInChannel(cName,neighbors);
 		}
 		
-		System.out.println("pair = "+pair+", userName = "+userName);
+//		System.out.println("pair = "+pair+", userName = "+userName);
 		
 		cm.addUserToChannel(cName, pair, userName);
-		System.out.println(userName+" joined channel "+cName+".");
+//		System.out.println(userName+" joined channel "+cName+".");
 		
 		
 		
@@ -164,7 +162,6 @@ public class RequestHandler implements Runnable {
 			prompt.append(serverSocket.getLocalSocketAddress()).append(" ");
 			String receiverAddress = receivingServer.getAddress().toString()
 					.replace("localhost", "");
-			System.out.println("yoyo!"+receiverAddress);
 			prompt.append(receiverAddress).append(":").append(receivingServer.getPort()).append(" ");
 			prompt.append("send S2S Join ").append(cName);
 			System.out.println(prompt);
@@ -194,7 +191,70 @@ public class RequestHandler implements Runnable {
 
 		// delete the user from the channel
 		cm.deleteUserFromChannel(new String(channelName), pair); 
-		System.out.println(cm.getAllUsers().get(pair)+" left channel "+new String(channelName));
+//		System.out.println(cm.getAllUsers().get(pair)+" left channel "+new String(channelName));
+		
+		
+		
+		/*
+		 * There are 2 scenarios in which we need to send a S2S leave message to the server that
+		 * sends this S2S say message. The 1st scenario is that the server is a leaf, which is 
+		 * represented by leafInTree boolean variable. The 2nd scenario is that the server gets 
+		 * a duplicate say message, which is represented by gotDuplicateSay boolean variable.
+		 * 
+		 * This is the second scenario where we need to send a leave.
+		 */
+		
+		// get the sender
+		AddressPortPair sender = null;
+		try {
+			sender = new AddressPortPair(InetAddress.getByName(pair.split(" ")[0]), Integer.parseInt(pair.split(" ")[1]));
+		} catch (NumberFormatException e1) {
+			e1.printStackTrace();
+		} catch (UnknownHostException e1) {
+			e1.printStackTrace();
+		}
+		
+		// check if the server is the leaf of the tree for the channel
+		boolean leafInTree = false;
+		Channel channel = cm.getChannelTable().get(new String(channelName).trim());
+		if (channel == null) {
+			leafInTree = true;
+		} else {
+			leafInTree = channel.getClients().size() == 0 && // the channel does not have any clients
+					channel.getRoutingTable().size() == 1 && 
+					channel.getRoutingTable().get(0).equals(sender); // the server only knows the sender
+		
+			// remove itself from the tree, i.e., delete the channel in this server's own channel table.
+			if (leafInTree)  cm.getChannelTable().remove(new String(channelName).trim());
+		}
+		
+		
+		// send S2S leave message if necessary. Otherwise, forward S2S say messages to children
+		if ( (leafInTree) && neighbors.size() != 1) { // the last condition is for the case in which there are only two servers
+			
+			byte[] leaveRequest = S2SRequestGenerator.generateS2SLeaveMessage(new String(channelName).trim());
+			
+			// send S2S leave message
+			try {
+		    	DatagramPacket packet = 
+						new DatagramPacket(leaveRequest, leaveRequest.length, 
+								sender.getAddress(), sender.getPort());
+		   		serverSocket.send(packet);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			
+			// print send Leave prompt
+			StringBuilder sendPrompt = new StringBuilder();
+			sendPrompt.append(serverSocket.getLocalSocketAddress()).append(" ");
+			String receiverAddress = sender.getAddress().toString()
+					.replace("localhost", "");
+			sendPrompt.append(receiverAddress).append(":").append(sender.getPort()).append(" ");
+			sendPrompt.append("send S2S Leave ").append(new String(channelName).trim());
+			System.out.println(sendPrompt);
+			
+		} 
+		
 	}
 	
 	private void handleSayRequest() {
@@ -264,7 +324,47 @@ public class RequestHandler implements Runnable {
 
 		}
 		
-		System.out.println(uName+" said something in channel "+new String(channelName).trim());
+//		System.out.println(uName+" said something in channel "+new String(channelName).trim());
+		
+		// print receive prompt
+		StringBuilder prompt = new StringBuilder();
+		prompt.append(serverSocket.getLocalSocketAddress()).append(" /");
+		prompt.append(pair.split(" ")[0]).append(":").append(pair.split(" ")[1]).append(" ");
+		prompt.append("recv Request Say ").append(new String(channelName).trim());
+		prompt.append(" \"").append(new String(textField)).append("\"");
+		System.out.println(prompt);
+		
+		
+		// send S2S say message to all servers in the routing table
+		if (channel != null) {
+			
+			byte[] s2sSayRequest = S2SRequestGenerator.generateS2SSayMessage(userName, channelName, textField);
+			
+			for (AddressPortPair receivingServer: channel.getRoutingTable()) {
+				
+				// send S2S say message
+				try {
+			    	DatagramPacket packet = 
+							new DatagramPacket(s2sSayRequest, s2sSayRequest.length, 
+									receivingServer.getAddress(), receivingServer.getPort());
+			   		serverSocket.send(packet);
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+				
+				// print send Say prompt
+				StringBuilder sendPrompt = new StringBuilder();
+				sendPrompt.append(serverSocket.getLocalSocketAddress()).append(" ");
+				String receiverAddress = receivingServer.getAddress().toString()
+						.replace("localhost", "");
+				sendPrompt.append(receiverAddress).append(":").append(receivingServer.getPort()).append(" ");
+				sendPrompt.append("send S2S Say ").append(new String(userName).trim()).append(" ");
+				sendPrompt.append(new String(channelName).trim());
+				sendPrompt.append(" \"").append(new String(textField)).append("\"");
+				System.out.println(sendPrompt);
+		    	
+			}
+		}
 	}
 	
 	private void handleListRequest() {
@@ -299,7 +399,7 @@ public class RequestHandler implements Runnable {
 			e.printStackTrace();
 		}
 
-		System.out.println(cm.getAllUsers().get(pair)+" sent a list request.");
+//		System.out.println(cm.getAllUsers().get(pair)+" sent a list request.");
 	}
 
 		
@@ -357,7 +457,7 @@ public class RequestHandler implements Runnable {
 			e.printStackTrace();
 		}
 		
-		System.out.println(cm.getAllUsers().get(pair)+" sent a who request.");
+//		System.out.println(cm.getAllUsers().get(pair)+" sent a who request.");
 
 	}
 	
@@ -496,7 +596,8 @@ public class RequestHandler implements Runnable {
 		StringBuilder receivePrompt = new StringBuilder();
 		receivePrompt.append(serverSocket.getLocalSocketAddress()).append(" /");
 		receivePrompt.append(pair.split(" ")[0]).append(":").append(pair.split(" ")[1]).append(" ");
-		receivePrompt.append("recv S2S Say ").append(channelName);
+		receivePrompt.append("recv S2S Say ").append(new String(channelName).trim());
+		receivePrompt.append(" ").append(new String(textField));
 		System.out.println(receivePrompt);
 		
 		
@@ -558,7 +659,7 @@ public class RequestHandler implements Runnable {
 		}
 		
 		// send S2S leave message if necessary. Otherwise, forward S2S say messages to children
-		if (leafInTree || gotDuplicateSay) {
+		if ( (leafInTree || gotDuplicateSay) && neighbors.size() != 1) { // the last condition is for the case in which there are only two servers
 			
 			byte[] leaveRequest = S2SRequestGenerator.generateS2SLeaveMessage(new String(channelName).trim());
 			
@@ -578,7 +679,7 @@ public class RequestHandler implements Runnable {
 			String receiverAddress = sender.getAddress().toString()
 					.replace("localhost", "");
 			sendPrompt.append(receiverAddress).append(":").append(sender.getPort()).append(" ");
-			sendPrompt.append("send S2S Leave ").append(channelName);
+			sendPrompt.append("send S2S Leave ").append(new String(channelName).trim());
 			System.out.println(sendPrompt);
 			
 		} else { 

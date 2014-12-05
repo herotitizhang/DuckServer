@@ -2,6 +2,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.ArrayList;
 
 
 public class S2SRequestGenerator {
@@ -61,30 +62,45 @@ public class S2SRequestGenerator {
 	    
 	    byte[] request = new byte[4+8+32+32+64];
 	    
-	    int i = 0;
-	    for (byte b: identifier) {
-	    	request[i] = b;
-	    	i++;
-	    }
-	    for (byte b: uniqueId) {
-	    	request[i] = b;
-	    	i++;
-	    }
-	    for (byte b: uName) {
-	    	request[i] = b;
-	    	i++;
-	    }
-	    for (byte b: cName) {
-	    	request[i] = b;
-	    	i++;
-	    }
-	    for (byte b: tField) {
-	    	request[i] = b;
-	    	i++;
-	    }
+	    for (int i = 0; i < 4; i++) {
+    		request[i] = identifier[i]; 
+    	}
+    	for (int i = 4; i < 12; i++) {
+    		request[i] = uniqueId[i-4];
+    	}
+    	for (int i = 12; i < 44; i++) {
+    		request[i] = uName[i-12]; 
+    	}
+    	for (int i = 44; i < 76; i++) {
+    		request[i] = cName[i-44]; 
+    	}
+    	for (int i = 76; i < 140; i++) {
+    		request[i] = tField[i-76]; 
+    	}
+    	
 	    
 	    return request;
 	}
+	
+	public static byte[] generateS2SSayMessage(byte[] userName, byte[] channelName, byte[] textField)  {
+		ArrayList<byte[]> toBeCombined = new ArrayList<byte[]>();
+		byte[] identifier = new byte[4];
+	    identifier[0] = 10;
+	    toBeCombined.add(identifier);
+		
+	    byte[] uniqueId = getUniqueIdentifiers();
+	    toBeCombined.add(uniqueId);
+	    
+	    toBeCombined.add(userName);
+	    toBeCombined.add(channelName);
+	    toBeCombined.add(textField);
+	    
+	    return Utilities.combineListOfByteArrays(toBeCombined);
+	    
+	    
+	    
+	}
+
 
 	
 	private static byte[] getUniqueIdentifiers() {
@@ -97,11 +113,11 @@ public class S2SRequestGenerator {
 		}
 	    
 		// Instantiate an array
-	    byte []arr= new byte[64];
+	    byte []arr= new byte[8];
 
 	    // read All bytes of File stream
 	    try {
-			fileStream.read(arr,0,64);
+			fileStream.read(arr,0,8);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
