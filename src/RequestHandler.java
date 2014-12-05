@@ -127,6 +127,10 @@ public class RequestHandler implements Runnable {
 		
 		String cName = new String(channelName);
 		
+		for(String key: Server.joinRecord.keySet()){
+			if (key.equals(cName))
+				Server.joinRecord.put(key, 0);
+		}
 		//check if the requested join channel exists
 		if( !cm.getChannelTable().containsKey(cName) ||
 				!cm.getChannelTable().get("Common").getClients().containsKey(pair)){
